@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"always","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="概述Java虚拟机简称为JVM，JVM从整体上看，主要解决了以下几个问题：  Java Class 二进制字节流的加载（ClassLoader） Java 程序的内存管理（GC &amp; 运行时数据区） Java 程序的执行（执行引擎）">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Java虚拟机综述">
+<meta property="og:url" content="http://yoursite.com/2020/09/07/jvm/index.html">
+<meta property="og:site_name" content="个人成长博客">
+<meta property="og:description" content="概述Java虚拟机简称为JVM，JVM从整体上看，主要解决了以下几个问题：  Java Class 二进制字节流的加载（ClassLoader） Java 程序的内存管理（GC &amp; 运行时数据区） Java 程序的执行（执行引擎）">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://yoursite.com/2020/09/07/jvm/jvm.png">
+<meta property="og:image" content="http://yoursite.com/2020/09/07/jvm/classtranfer.png">
+<meta property="og:image" content="http://yoursite.com/2020/09/07/jvm/StackFrame.png">
+<meta property="og:image" content="http://yoursite.com/2020/09/07/jvm/VMStack.png">
+<meta property="og:image" content="http://yoursite.com/2020/09/07/jvm/addMethodCode.jpg">
+<meta property="og:image" content="http://yoursite.com/2020/09/07/jvm/6intern.png">
+<meta property="og:image" content="http://yoursite.com/2020/09/07/jvm/7intern.png">
+<meta property="article:published_time" content="2020-09-07T14:10:49.000Z">
+<meta property="article:modified_time" content="2020-10-05T04:32:29.587Z">
+<meta property="article:author" content="EvenLjj">
+<meta property="article:tag" content="java">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://yoursite.com/2020/09/07/jvm/jvm.png">
+
+<link rel="canonical" href="http://yoursite.com/2020/09/07/jvm/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Java虚拟机综述 | 个人成长博客</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">个人成长博客</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">纸上得来终觉浅，绝知此事要躬行</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/09/07/jvm/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="EvenLjj">
+      <meta itemprop="description" content="记录最近所学所思，让岁月留下汗水的痕迹">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="个人成长博客">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Java虚拟机综述
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2020-09-07 22:10:49" itemprop="dateCreated datePublished" datetime="2020-09-07T22:10:49+08:00">2020-09-07</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-10-05 12:32:29" itemprop="dateModified" datetime="2020-10-05T12:32:29+08:00">2020-10-05</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/java/" itemprop="url" rel="index"><span itemprop="name">java</span></a>
+                </span>
+            </span>
+
+          
+            <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv" style="display: none;">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span id="busuanzi_value_page_pv"></span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h1><p>Java虚拟机简称为JVM，JVM从整体上看，主要解决了以下几个问题：</p>
+<ol>
+<li>Java Class 二进制字节流的加载（ClassLoader）</li>
+<li>Java 程序的内存管理（GC &amp; 运行时数据区）</li>
+<li>Java 程序的执行（执行引擎）</li>
+</ol>
+<p>根据《Java虚拟机规范（Java SE 7版）》JVM的整体架构图如下：</p>
+<img src="/2020/09/07/jvm/jvm.png" style="zoom:50%;">
+
+<p>JVM主要由四部分组成：</p>
+<ol>
+<li>Class Loader：依据特定格式，加载class文件到内存</li>
+<li>Runtime Data Area： JVM内存空间模型，对于这部分的管理属于GC部分</li>
+<li>Execution Engine：对命令进行解析</li>
+<li>Native Interface：融合了不同开发语言的原生库为Java所用</li>
+</ol>
+<h2 id="类加载器"><a href="#类加载器" class="headerlink" title="类加载器"></a>类加载器</h2><p>对于 Java 虚拟机来说，Class 文件是一个重要的接口，无论使用何种语言进行软件开发，只要能将源文件编译为正确的 Class 文件，那么这种语言就可以在 Java 虚拟机上运行。可以说，Class 文件就是虚拟机的基石。Class如图：</p>
+<img src="/2020/09/07/jvm/classtranfer.png" style="zoom:50%;">
+
+<p>从上图可以看出，虚拟机不拘泥于 Java 语言，任何一个源文件只要能编译成 Class 文件的格式，就可以在JVM 上运行。Class 文件格式就像是一个接口，只要遵守这个接口，就能够在 JVM 上运行。同时，每个操作系统都有相对应的JVM。Java虚拟机通过类加载器将.class文件加载到虚拟机。</p>
+<h2 id="Java内存结构"><a href="#Java内存结构" class="headerlink" title="Java内存结构"></a>Java内存结构</h2><h3 id="运行时数据区"><a href="#运行时数据区" class="headerlink" title="运行时数据区"></a>运行时数据区</h3><h4 id="程序计数器"><a href="#程序计数器" class="headerlink" title="程序计数器"></a>程序计数器</h4><p>由于 Java 虚拟机的多线程时通过线程轮流切换并分配CPU时间片的方式来实现的，在任何一个确定的时刻，一个处理器都智慧执行一条线程中的指令。因此，为了线程切换后能恢复到正确的执行位置，每条线程都需要有一个独立的程序计数器，各条线程之间计数器互不影响，独立存储，我们称这类内存区域为 “线程私有的内存”。程序计数器主要有如下功能和特性：</p>
+<ol>
+<li>当前线程所执行的字节码行号指示器（逻辑）</li>
+<li>改变计数器的值来选取下一条需要执行的字节码指令</li>
+<li>和线程是一对一的关系即“线程私有”</li>
+<li>对Java计数，如果是Native方法则计数器值为Undefined</li>
+<li>不会发生内存泄漏（OOM）</li>
+</ol>
+<h4 id="虚拟机栈"><a href="#虚拟机栈" class="headerlink" title="虚拟机栈"></a>虚拟机栈</h4><p>线程私有，生命周期和线程一致。描述的是 Java 方法执行的内存模型：每个方法在执行时都会床创建一个栈帧(Stack Frame)用于存储局部变量表、操作数栈、动态链接、方法出口等信息。每一个方法从调用直至执行结束，就对应着一个栈帧从虚拟机栈中入栈到出栈的过程。栈帧的结构如图：</p>
+<p><img src="/2020/09/07/jvm/StackFrame.png"></p>
+<p>局部变量表：存放了编译期可知的各种基本类型(boolean、byte、char、short、int、float、long、double)、对象引用(reference 类型)和 returnAddress 类型(指向了一条字节码指令的地址)</p>
+<p>操作数栈：jvm指令是基于操作栈的，也就是说，运算过程是在操作栈中进行的</p>
+<p>动态链接：Class字节码的常量持中存有大量的符号引用，在运行期才将符号引用变成直接引用（也就是指向数据），可以是方法或者字段的引用</p>
+<p>方法出口：即本方法执行后下一步指令的地址，方法正常退出时，调用者PC计数器的值就可以作为返回地址，异常退出时，返回地址是要通过异常处理器来确定</p>
+<p>下图，add(1,2)栈帧的变化过程：</p>
+<p><img src="/2020/09/07/jvm/VMStack.png"></p>
+<p>执行add方法反编译code如下：</p>
+<p><img src="/2020/09/07/jvm/addMethodCode.jpg"></p>
+<p>执行该方法时会创建一个栈帧，其中栈的深度（stack）为2，局部变量表容量（locals）为3，参数数量（args_size）为2，执行add方法分为7个jvm指令，8个命令执行过程分栈帧变化 ：</p>
+<ol>
+<li>iconst_0：将0压入操作数栈中</li>
+<li>istore_2：将操作数栈顶元素pop出来，存入到局部变量index为2的位置</li>
+<li>iload_0：将局部变量index为0的数压入到操作数栈</li>
+<li>iload_1：将局部变量index为1的数压入到操作数栈</li>
+<li>iadd：将操作数栈中2和1都弹出来，并相加再压入栈顶</li>
+<li>istore_2：将操作数栈顶元素pop出来，存入到局部变量index为2的位置</li>
+<li>iload_2：将局部变量index为2的数压入到操作数栈</li>
+<li>将操作数栈的栈顶元素返回出去</li>
+</ol>
+<p>线程请求的栈深度（栈帧数）大于虚拟机栈所允许的深度，会报StackOverflowError。当虚拟机栈可以动态扩展时，而扩展时无法申请到足够的内存，会报OutOfMemoryError。</p>
+<h4 id="本地方法栈"><a href="#本地方法栈" class="headerlink" title="本地方法栈"></a>本地方法栈</h4><p>区别于 Java 虚拟机栈的是，Java 虚拟机栈为虚拟机执行 Java 方法(也就是字节码)服务，而本地方法栈则为虚拟机使用到的 Native 方法服务。而虚拟机规范中对本地方法栈中方法使用的语言，使用方式与数据结构并<strong>没有强制规定</strong>，因此具体的虚拟机可以自由实现它。甚至有的虚拟机（<strong>HotSpot虚拟机</strong>）直接就把<strong>本地方法栈和虚拟机栈合二为一</strong>。也会有 StackOverflowError 和 OutOfMemoryError 异常。</p>
+<h4 id="堆"><a href="#堆" class="headerlink" title="堆"></a>堆</h4><p>对于绝大多数应用来说，这块区域是 JVM 所管理的内存中最大的一块。线程共享，主要是存放对象实例和数组。</p>
+<p>Java堆可以位于物理上不连续的空间，但是逻辑上要连续。在实现时，既可以实现成固定大小的，也可以是可扩展的，不过当前主流的虚拟机都是按照可扩展来实现的（<strong>通过 -Xmx设置堆的最大值和 -Xms设置堆的初始值控制，一般Xmx和Xms设置成一样的，因为堆扩容时会导致内存抖动，影响程序运行时的稳定性</strong>）。如果在堆中没有内存完成实例分配，并且堆也无法扩展时，将会抛出 OOM 异常。</p>
+<p>堆和栈的主要区别：</p>
+<ol>
+<li>管理方式：栈自动释放，堆需要GC</li>
+<li>空间大小：栈比堆小</li>
+<li>碎片相关：栈产生的碎片远小于堆</li>
+<li>分配方式：栈支持静态和动态分配，而堆只支持动态分配</li>
+<li>效率：栈的效率比堆高</li>
+</ol>
+<h5 id="垃圾回收"><a href="#垃圾回收" class="headerlink" title="垃圾回收"></a>垃圾回收</h5><p>Java 堆是垃圾收集器管理的主要区域，因此很多时候也被称为 <strong>“GC 堆（Garbage Collected Heap）”</strong>，从内存回收的角度来看，由于现在收集器基本都采用<strong>分代收集算法</strong>，所有Java 堆中还可以细分成：<strong>新生代和老年代</strong>；再细致一点的有 Eden 空间，From Survivor 空间，To Survivor 空间等。内部会划分出多个线程私有的分配缓冲区(Thread Local Allocation Buffer, TLAB)。</p>
+<p>Java 程序员之所以不需要显式的释放内存，一切也都归功于 GC，GC 解放了 Java 程序员的双手。GC 系统会在后台清除无用的实例对象，释放内存空间。GC的内容相对比较多，这里就不多赘述。</p>
+<h4 id="方法区"><a href="#方法区" class="headerlink" title="方法区"></a>方法区</h4><p>方法区（Method Area ）与 Java 堆一样，时各个线程共享的内存区域，<strong>它用于存储已被虚拟机加载的类信息，常量，静态变量，即时编译器编译后的代码等数据。</strong>虽然Java 虚拟机规范把方法区描述堆的一个逻辑部分，但是它却有一个别名叫做（Non-Heap 非堆），目的应该是与Java 堆区分开来。</p>
+<h5 id="永久代"><a href="#永久代" class="headerlink" title="永久代"></a>永久代</h5><p>对于习惯在 HotSpot 虚拟机上开发，部署程序的开发者来说，很多人都更愿意把方法区称为 “<strong>永久代</strong>（Permanent Generation）”，本质上两者并不等价，仅仅是因为 HotSpot 虚拟机的设计团队选择把GC 分代设计扩展至方法区，或者说使用永久代来实现方法区而已，这样 HotSpot 的垃圾收集器可以像管理Java 堆一样管理这部分内存，能够省去专门为方法区编写内存管理代码的工作。</p>
+<p>对于其他虚拟机并不存在永久代这个概念。原则上，如何实现Java 虚拟机属于实现细节，不受虚拟机规范约束，但使用永久代来实现方法区，更容易遇到内存溢出（永久代有 -XX：MaxPermSize 的上限）。因此，<strong>对于 HotSpot 虚拟机</strong>，已经放弃了永久代并逐步改为 Native Memory 来实现方法区的规划了，<strong>在JDK1.7版本中，已经把原本放在永久代的字符串常量池移出</strong>（<strong>符号引用(Symbols)**移至</strong>native heap<strong>，</strong>字面量(interned strings)<strong>和</strong>静态变量(class statics)<strong>移至</strong>java heap**）。</p>
+<p>Java 虚拟机规范对方法区的限制非常宽松，除了和 Java 堆一样不需要连续的内存和可以选择固定大小或者可扩展外，还可以选择不实现垃圾回收。相对而言，垃圾收集行为在这个区域是比较少见的，<strong>但并非数据进入了方法区就如同永久代的名字一样“永久”存在了</strong>。这区域的内存回收目标<strong>主要是针对常量池的回收和对类型的卸载</strong>，一般来说，这个区域的回收“成绩”比较难以令人满意，尤其是类型的卸载，条件相当苛刻，但是这部分的区域的回收确实是由必要的。Sun 有几个Bug 就是应为HotSpot 虚拟机对此区域未完全回收导致内存泄漏。当方法区无法满足内存分配需求时，也将抛出OOM异常。</p>
+<h5 id="元空间"><a href="#元空间" class="headerlink" title="元空间"></a>元空间</h5><p>JDK 1.8开始，抛弃了永久代，使用元空间（<strong>Metaspace</strong>）作为方法区的实现。元空间和永久代最大的区别就是，元空间使用本地内存，而永久代使用JVM内存。元空间相比于永久代的优势：</p>
+<ol>
+<li>字符串常量池存在于永久代中，容易出现性能问题和内存溢出</li>
+<li>类和方法的信息大小难以确定，给永久代的大小指定带来困难，太小容易导致永久代溢出，太大容易导致老年代溢出</li>
+<li>永久代会为GC带来不必要的复杂性</li>
+<li>方便HotSpot与其他JVM如Jrockit集成</li>
+</ol>
+<p><strong>元空间内存管理：</strong></p>
+<ol>
+<li>在metaspace中，类和其元数据的生命周期与其对应的类加载器相同，只要类的类加载器是存活的，在Metaspace中的类元数据也是存活的，不能被回收</li>
+<li>每个加载器有单独的存储空间</li>
+<li>省掉了GC扫描及压缩的时间</li>
+<li>当GC发现某个类加载器不再存活了，会把对应的空间整个回收</li>
+</ol>
+<p>元空间使用一个<strong>块分配器(chunking allocator)**来管理Metaspace空间的内存分配。块的大小依赖于类加载器的类型。元空间中有一个全局的可使用的</strong>块列表（a global free list of chunks）**。当类加载器需要一个块的时候，类加载器从全局块列表中取出一个块，添加到它自己维护的块列表中。当类加载器死亡，它的块将会被释放，归还给全局的块列表。</p>
+<h4 id="运行时常量池"><a href="#运行时常量池" class="headerlink" title="运行时常量池"></a>运行时常量池</h4><p>运行时常量区，属于方法区的一部分。用于存放编译期生成的各种字面量和符号引用。编译器和运行期(String 的 intern() )都可以将常量放入池中。内存有限，无法申请时抛出OOM。<strong>在JDK1.7版本中，已经把原本放在永久代的字符串常量池移出放入到堆中。</strong>因此，在1.7之前版本和之后的版本String的intern()方法返回有些不同：</p>
+<ol>
+<li>JDK1.6：当调用intern()方法时，如果字符串常量池先前已经创建了这个字符串对象，则返回池中该字符串的引用。否则将该字符串对象加入到字符串常量池中，并返回该字符串对象的引用</li>
+<li>JDK1.7+：当调用intern()方法时，如果字符串常量池先前已经创建了这个字符串对象，则返回池中该字符串的引用。否则，<strong>再判断该字符串对象是否已经存在Java堆中，存在则将堆中此对象的引用加入到字符串常量池，并返回该引用。</strong>如果堆中不存在，将该字符串对象加入到字符串常量池中，并返回该字符串对象的引用。</li>
+</ol>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">String s1 = <span class="keyword">new</span> String(<span class="string">&quot;a&quot;</span>);</span><br><span class="line">s1.intern();</span><br><span class="line">String s2 = <span class="string">&quot;a&quot;</span>;</span><br><span class="line">System.out.println(s == s2);</span><br><span class="line"></span><br><span class="line">String s3 = <span class="keyword">new</span> String(<span class="string">&quot;a&quot;</span>) + <span class="keyword">new</span> String(<span class="string">&quot;a&quot;</span>);</span><br><span class="line">s3.intern();</span><br><span class="line">String s4 = <span class="string">&quot;aa&quot;</span>;</span><br><span class="line">System.out.println(s3 == s4);</span><br></pre></td></tr></table></figure>
+
+<img src="/2020/09/07/jvm/6intern.png" style="zoom:50%;">
+
+<p>JDK1.6中，两个返回为false,因为s1和s3都是堆中对象的引用，s2和s4是常量池中对象的引用，则拿堆中对象地址和常量池对象地址想比较肯定不相等。</p>
+<img src="/2020/09/07/jvm/7intern.png" style="zoom:50%;">
+
+<p>JDK1.7+中，第一个返回false，s1是堆中对象的引用，s2因为常量池中已有，所以s1执行intern方法之后，因为常量池中已存在“a”，所以s2=“a”时，s2是常量池对象引用，所以不相等。第二个返回true，因为s3执行intern方法之后，因为常量池中不存在“aa”，<strong>则将堆中的引用放到常量池中</strong>，s4=“aa”时，实际指向了堆中的字符串对象，所以相等。即JDK1.7中的<strong>字符串常量池可以放堆中的引用</strong>，可以减少一定的内存开销。</p>
+<h4 id="直接内存"><a href="#直接内存" class="headerlink" title="直接内存"></a>直接内存</h4><p>直接内存（Direct Memory) 并不是JVM 运行时数据区的一部分，也不是 JVM 规范中定义的内存区域，但是这部分内存也被频繁的使用，而且也可能导致 OOM。</p>
+<p>在 JDK 1.4 中新加入了 NIO 类，引用了一种基于通道（Channel）与缓冲区（Buffer）的 I/O 方式，它可以使用 native 函数库直接分配堆外内存，然后通过一个存储在 Java 堆中的 DirectByteBuffer 对象作为这块内存的引用进行操作。这样能在一些场合中显著提高性能，因为避免了在 Java 堆和 Native 堆中来回复制数据。</p>
+<p>显然，本机直接内存的分配不会受到 Java 堆大小的限制，但是，既然是内存，肯定还是会受到本机总内存（包括 RAM以及 SWAP 区或者分页文件）大小以及处理器寻址空间的限制。服务器管理员在配置虚拟机总参数时，会根据实际内存设置-Xmx 等参数信息，但经常忽略直接内存，使得各个内存区域总和大于物理内存限制（包括物理的和操作系统级别的限制），从而导致动态扩展时出现 OOM 异常。</p>
+<h2 id="执行引擎"><a href="#执行引擎" class="headerlink" title="执行引擎"></a>执行引擎</h2><p>执行引擎是Java虚拟机最核心的组成部件之一。虚拟机的执行引擎由自己实现，所以可以自行定制指令集与执行引擎的结构体系，并且能够执行那些不被硬件直接支持的指令集格式。所有的Java虚拟机的执行引擎都是一致的：<strong>输入的是字节码文件，处理过程是字节码解析的等效过程，输出的是执行结果</strong>。基于栈的字节码解释执行引擎的执行过程如上add方法。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/java/" rel="tag"># java</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/08/22/Redis%E5%BA%95%E5%B1%82%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84%E8%AE%BE%E8%AE%A1/" rel="prev" title="Redis底层数据结构设计">
+      <i class="fa fa-chevron-left"></i> Redis底层数据结构设计
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2020/09/11/ClassLoader/" rel="next" title="虚拟机类加载机制">
+      虚拟机类加载机制 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%A6%82%E8%BF%B0"><span class="nav-number">1.</span> <span class="nav-text">概述</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%B1%BB%E5%8A%A0%E8%BD%BD%E5%99%A8"><span class="nav-number">1.1.</span> <span class="nav-text">类加载器</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Java%E5%86%85%E5%AD%98%E7%BB%93%E6%9E%84"><span class="nav-number">1.2.</span> <span class="nav-text">Java内存结构</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%BF%90%E8%A1%8C%E6%97%B6%E6%95%B0%E6%8D%AE%E5%8C%BA"><span class="nav-number">1.2.1.</span> <span class="nav-text">运行时数据区</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%A8%8B%E5%BA%8F%E8%AE%A1%E6%95%B0%E5%99%A8"><span class="nav-number">1.2.1.1.</span> <span class="nav-text">程序计数器</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%99%9A%E6%8B%9F%E6%9C%BA%E6%A0%88"><span class="nav-number">1.2.1.2.</span> <span class="nav-text">虚拟机栈</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%9C%AC%E5%9C%B0%E6%96%B9%E6%B3%95%E6%A0%88"><span class="nav-number">1.2.1.3.</span> <span class="nav-text">本地方法栈</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%A0%86"><span class="nav-number">1.2.1.4.</span> <span class="nav-text">堆</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%9E%83%E5%9C%BE%E5%9B%9E%E6%94%B6"><span class="nav-number">1.2.1.4.1.</span> <span class="nav-text">垃圾回收</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%96%B9%E6%B3%95%E5%8C%BA"><span class="nav-number">1.2.1.5.</span> <span class="nav-text">方法区</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E6%B0%B8%E4%B9%85%E4%BB%A3"><span class="nav-number">1.2.1.5.1.</span> <span class="nav-text">永久代</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%85%83%E7%A9%BA%E9%97%B4"><span class="nav-number">1.2.1.5.2.</span> <span class="nav-text">元空间</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%BF%90%E8%A1%8C%E6%97%B6%E5%B8%B8%E9%87%8F%E6%B1%A0"><span class="nav-number">1.2.1.6.</span> <span class="nav-text">运行时常量池</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%9B%B4%E6%8E%A5%E5%86%85%E5%AD%98"><span class="nav-number">1.2.1.7.</span> <span class="nav-text">直接内存</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%89%A7%E8%A1%8C%E5%BC%95%E6%93%8E"><span class="nav-number">1.3.</span> <span class="nav-text">执行引擎</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">EvenLjj</p>
+  <div class="site-description" itemprop="description">记录最近所学所思，让岁月留下汗水的痕迹</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">7</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">3</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">3</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">EvenLjj</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a> 强力驱动
+  </div>
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+</div>
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
