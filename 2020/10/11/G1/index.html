@@ -20,19 +20,20 @@
     var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"always","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
   </script>
 
-  <meta name="description" content="概述G1是 Java 9 的默认垃圾收集器，该收集器可以工作在新生代，也可以工作在 老年代。同优秀的CMS垃圾收集器一样，G1也是关注最小时延的垃圾回收器，也同样适合大尺寸堆内存的垃圾收集，整个垃圾收集处理过程并行和并发，并且做到了可预测停顿，官方也推荐使用G1来代替选择CMS。G1最大的特点是引入分区的思路，将整个Java堆内存划分成多个大小相等的Region，弱化了分代的概念，新生代和老年代不">
+  <meta name="description" content="概述G1是 Java 9 的默认垃圾收集器，该收集器可以工作在新生代，也可以工作在老年代。同优秀的CMS垃圾收集器一样，G1也是关注最小时延的垃圾回收器，也同样适合大尺寸堆内存的垃圾收集，整个垃圾收集处理过程并行和并发，并且做到了可预测停顿，官方也推荐使用G1来代替选择CMS。G1最大的特点是引入分区的思路，将整个Java堆内存划分成多个大小相等的Region，弱化了分代的概念，新生代和老年代不再">
 <meta property="og:type" content="article">
 <meta property="og:title" content="G1垃圾收集器">
 <meta property="og:url" content="http://yoursite.com/2020/10/11/G1/index.html">
 <meta property="og:site_name" content="个人成长博客">
-<meta property="og:description" content="概述G1是 Java 9 的默认垃圾收集器，该收集器可以工作在新生代，也可以工作在 老年代。同优秀的CMS垃圾收集器一样，G1也是关注最小时延的垃圾回收器，也同样适合大尺寸堆内存的垃圾收集，整个垃圾收集处理过程并行和并发，并且做到了可预测停顿，官方也推荐使用G1来代替选择CMS。G1最大的特点是引入分区的思路，将整个Java堆内存划分成多个大小相等的Region，弱化了分代的概念，新生代和老年代不">
+<meta property="og:description" content="概述G1是 Java 9 的默认垃圾收集器，该收集器可以工作在新生代，也可以工作在老年代。同优秀的CMS垃圾收集器一样，G1也是关注最小时延的垃圾回收器，也同样适合大尺寸堆内存的垃圾收集，整个垃圾收集处理过程并行和并发，并且做到了可预测停顿，官方也推荐使用G1来代替选择CMS。G1最大的特点是引入分区的思路，将整个Java堆内存划分成多个大小相等的Region，弱化了分代的概念，新生代和老年代不再">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="http://yoursite.com/2020/10/11/G1/region.png">
 <meta property="og:image" content="http://yoursite.com/2020/10/11/G1/Users/EvenL/OneDrive/blog/source/_posts/G1/regiondetail.png">
+<meta property="og:image" content="http://yoursite.com/2020/10/11/G1/Users/EvenL/OneDrive/blog/source_posts/G1/TLAB.png">
 <meta property="og:image" content="http://yoursite.com/2020/10/11/G1/Rset.png">
 <meta property="og:image" content="http://yoursite.com/2020/10/11/G1/Cset.png">
 <meta property="article:published_time" content="2020-10-11T03:13:05.000Z">
-<meta property="article:modified_time" content="2020-10-21T15:52:20.610Z">
+<meta property="article:modified_time" content="2020-10-25T10:01:19.320Z">
 <meta property="article:author" content="EvenLjj">
 <meta property="article:tag" content="java">
 <meta name="twitter:card" content="summary">
@@ -202,7 +203,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2020-10-21 23:52:20" itemprop="dateModified" datetime="2020-10-21T23:52:20+08:00">2020-10-21</time>
+                <time title="修改时间：2020-10-25 18:01:19" itemprop="dateModified" datetime="2020-10-25T18:01:19+08:00">2020-10-25</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -232,10 +233,10 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <h1 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h1><p>G1是 Java 9 的默认垃圾收集器，该收集器可以工作在新生代，也可以工作在 老年代。同优秀的CMS垃圾收集器一样，G1也是关注最小时延的垃圾回收器，也同样适合大尺寸堆内存的垃圾收集，<strong>整个垃圾收集处理过程并行和并发，并且做到了可预测停顿</strong>，官方也推荐使用G1来代替选择CMS。G1最大的特点是引入分区的思路，<strong>将整个Java堆内存划分成多个大小相等的Region</strong>，弱化了分代的概念，<strong>新生代和老年代不再物理隔离</strong>，合理利用垃圾收集各个周期的资源，解决了其他收集器甚至CMS的众多缺陷。<strong>通过参数<code>-XX:+UseG1GC</code>来启用。</strong></p>
+        <h1 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h1><p>G1是 Java 9 的默认垃圾收集器，该收集器可以工作在新生代，也可以工作在老年代。同优秀的CMS垃圾收集器一样，G1也是关注最小时延的垃圾回收器，也同样适合大尺寸堆内存的垃圾收集，<strong>整个垃圾收集处理过程并行和并发，并且做到了可预测停顿</strong>，官方也推荐使用G1来代替选择CMS。G1最大的特点是引入分区的思路，<strong>将整个Java堆内存划分成多个大小相等的Region</strong>，弱化了分代的概念，<strong>新生代和老年代不再物理隔离</strong>，合理利用垃圾收集各个周期的资源，解决了其他收集器甚至CMS的众多缺陷。<strong>通过参数<code>-XX:+UseG1GC</code>来启用。</strong></p>
 <h2 id="重要概念"><a href="#重要概念" class="headerlink" title="重要概念"></a>重要概念</h2><h3 id="Region"><a href="#Region" class="headerlink" title="Region"></a>Region</h3><p>G1采用内存分区(Region)的思路，将内存划分为一个个相等大小的内存分区，回收时则以分区为单位进行回收，存活的对象复制到另一个空闲分区中。由于都是以相等大小的分区为单位进行操作，因此G1天然就是一种压缩方案(局部压缩)。每个Region被标记了E、S、O和H，说明每个Region在运行时都充当了一种角色，其中E代表的是Eden，S代表的是Survivor，O代表老年代，白色的代表的是空闲的region。其中H是以往算法中没有的，它代表Humongous，这表示这些Region存储的是巨型对象（humongous object，H-obj），当新建对象大小超过Region大小一半时，直接在新的一个或多个连续Region中分配，并标记为H。如下图：</p>
 <p><img src="/2020/10/11/G1/region.png"></p>
-<p>堆内存中一个Region的大小可以通过<code>-XX:G1HeapRegionSize</code>参数指定，大小区间只能是1M、2M、4M、8M、16M和32M，总之是2的幂次方，如果G1HeapRegionSize为默认值，则在堆初始化时计算Region的实践大小，默认把堆内存按照2048份均分，最后得到一个合理的大小。</p>
+<p>堆内存中一个Region的大小可以通过<code>-XX:G1HeapRegionSize</code>参数指定，大小区间只能是1M、2M、4M、8M、16M和32M，总之是2的幂次方，G1HeapRegionSize设定为默认值是根据堆初始化时计算Region的实践大小，默认把堆内存按照2048份均分，最后得到一个合理的大小。</p>
 <p>每一个分配的Region，都可以分成两个部分，已分配的和未被分配的。它们之间的界限被称为top。总体上来说，把一个对象分配到Region内，只需要简单增加top的值。这个做法实际上就是bump-the-pointer。过程如下：</p>
 <img src="/2020/10/11/G1/Users\EvenL\OneDrive\blog\source\_posts\G1\regiondetail.png" style="zoom:80%;">
 
@@ -247,13 +248,18 @@
 <li>比较记录的top值和现在的top值，如果一样，则执行分配，并且更新top的值；否则，重复1；</li>
 </ol>
 <p>显然的，采用TLABs的技术，就会带来碎片。举例来说，当一个线程在自己的Buffer里面分配的时候，虽然Buffer里面还有剩余的空间，但是却因为分配的对象过大以至于这些空闲空间无法容纳，此时线程只能去申请新的Buffer，而原来的Buffer中的空闲空间就被浪费了。Buffer的大小和线程数量都会影响这些碎片的多寡。</p>
+<h3 id="本地分配缓冲"><a href="#本地分配缓冲" class="headerlink" title="本地分配缓冲"></a>本地分配缓冲</h3><p>Local allocation buffer (Lab)，本地分配缓冲。由于分区的思想，每个线程均可以”认领”某个分区用于线程本地的内存分配，而不需要顾及分区是否连续。因此，每个应用线程和GC线程都会独立的使用分区，进而减少同步时间，提升GC效率，这个分区称为本地分配缓冲区(Lab)。</p>
+<h4 id="TLAB"><a href="#TLAB" class="headerlink" title="TLAB"></a>TLAB</h4><p>Thread Local Allocation Buffers，线程本地分配缓存。其中，应用线程可以独占一个本地缓冲区(TLAB)来创建的对象，而大部分都会落入Eden区域(巨型对象或分配失败除外)，因此TLAB的分区属于Eden空间。TLAB分配策略如下：</p>
+<p><img src="/2020/10/11/G1/Users\EvenL\OneDrive\blog\source_posts\G1\TLAB.png"></p>
+<h4 id="GCLAB"><a href="#GCLAB" class="headerlink" title="GCLAB"></a>GCLAB</h4><p>GC Local Allocation Buffers，垃圾回收本地缓冲区。而每次垃圾收集时，每个GC线程同样可以独占一个本地缓冲区(GCLAB)用来转移对象，每次回收会将对象复制到Suvivor空间或老年代空间。</p>
+<h4 id="PLAB"><a href="#PLAB" class="headerlink" title="PLAB"></a>PLAB</h4><p>Promotion Local Allocation Buffers，晋升本地缓冲区(。对于从Eden/Survivor空间晋升(Promotion)到Survivor或者老年代空间的对象，同样有GC独占的本地缓冲区进行操作，该部分称为晋升本地缓冲区(PLAB)。</p>
 <h3 id="RSet"><a href="#RSet" class="headerlink" title="RSet"></a>RSet</h3><p>在串行和并行收集器中，GC通过整堆扫描，来确定对象是否处于可达路径中。然而G1为了避免STW式的整堆扫描，在每个分区记录了一个已记忆集合(Remember Set，简称RSet)，内部类似一个反向指针，记录引用分区内对象的卡片索引。当要回收该分区时，通过扫描分区的RSet，来确定引用本分区内的对象是否存活，进而确定本分区内的对象存活情况。在回收一个Region的时候不需要执行全堆扫描，只需要检查它的RS就可以找到外部引用，而这些引用就是initial mark的根之一。</p>
 <p>那么，如果一个线程修改了Region内部的引用，就必须要去通知RS，更改其中的记录。为了达到这种目的，G1回收器引入了一种新的结构，CT(Card Table)——卡表。每一个Region，又被分成了固定大小的若干张卡(Card)。每一张卡，都用一个Byte来记录是否修改过。卡表即这些byte的集合。实际上，如果把RS理解成一个概念模型，那么CT就可以说是RS的一种实现方式。</p>
 <p>在RS的修改上也会遇到并发的问题。因为一个Region可能有多个线程在并发修改，因此它们也会并发修改RS。为了避免这样一种冲突，G1垃圾回收器进一步把RS划分成了多个哈希表。每一个线程都在各自的哈希表里面修改。最终，从逻辑上来说，RS就是这些哈希表的集合。哈希表是实现RS的一种通常的方式之一。它有一个极大的好处就是能够去除重复。这意味着，RS的大小将和修改的引用指针数量相当。而在不去重的情况下，RS的数量和写操作的数量相当。Rset的结构如图：</p>
 <p><img src="/2020/10/11/G1/Rset.png"></p>
-<h3 id="CSet"><a href="#CSet" class="headerlink" title="CSet"></a>CSet</h3><p>Collection Set，简称CSet。收集集合(CSet)代表每次GC暂停时回收的一系列目标分区。在任意一次收集暂停中，CSet所有分区都会被释放，内部存活的对象都会被转移到分配的空闲分区中。因此无论是年轻代收集，还是混合收集，工作的机制都是一致的。年轻代收集CSet只容纳年轻代分区，而混合收集会通过启发式算法，在老年代候选回收分区中，筛选出回收收益最高的分区添加到CSet中。G1的收集都是根据CSet进行操作的，年轻代收集与混合收集没有明显的不同，最大的区别在于两种收集的触发条件。</p>
+<h3 id="CSet"><a href="#CSet" class="headerlink" title="CSet"></a>CSet</h3><p>Collection Set，简称CSet。收集集合(CSet)代表每次GC暂停时回收的一系列目标分区。在任意一次收集暂停中，CSet中所有分区都会被释放，内部存活的对象都会被转移到分配的空闲分区中。因此无论是年轻代收集，还是混合收集，工作的机制都是一致的。年轻代收集CSet只容纳年轻代分区，而混合收集会通过启发式算法，在老年代候选回收分区中，筛选出回收收益最高的分区添加到CSet中。G1的收集都是根据CSet进行操作的，年轻代收集与混合收集没有明显的不同，最大的区别在于两种收集的触发条件。</p>
 <p><img src="/2020/10/11/G1/Cset.png"></p>
-<h4 id="CSet-of-Young-Collection"><a href="#CSet-of-Young-Collection" class="headerlink" title="CSet of Young Collection"></a>CSet of Young Collection</h4><p>应用线程不断活动后，年轻代空间会被逐渐填满。当JVM分配对象到Eden区域失败(Eden区已满)时，便会触发一次STW式的年轻代收集。在年轻代收集中，Eden分区存活的对象将被拷贝到Survivor分区；原有Survivor分区存活的对象，将根据任期阈值(tenuring threshold)分别晋升到PLAB中，新的survivor分区和老年代分区。而原有的年轻代分区将被整体回收掉。</p>
+<h4 id="CSet-of-Young-Collection"><a href="#CSet-of-Young-Collection" class="headerlink" title="CSet of Young Collection"></a>CSet of Young Collection</h4><p>应用线程不断活动后，年轻代空间会被逐渐填满。当JVM分配对象到Eden区域失败(Eden区已满)时，便会触发一次STW式的年轻代收集。在年轻代收集中，Eden分区存活的对象将被拷贝到Survivor分区；原有Survivor分区存活的对象，将根据任期阈值(tenuring threshold)分别晋升到本地分配缓冲区（PLAB）中，新的survivor分区和老年代分区中。而原有的年轻代分区将被整体回收掉。</p>
 <h4 id="CSet-of-Mixed-Collection"><a href="#CSet-of-Mixed-Collection" class="headerlink" title="CSet of Mixed Collection"></a>CSet of Mixed Collection</h4><p>年轻代收集不断活动后，老年代的空间也会被逐渐填充。当老年代占用空间超过整堆比IHOP阈值<code>-XX:InitiatingHeapOccupancyPercent</code>(默认45%)时，G1就会启动一次混合垃圾收集周期。为了满足暂停目标，G1可能不能一口气将所有的候选分区收集掉，因此G1可能会产生连续多次的混合收集与应用线程交替执行，每次STW的混合收集与年轻代收集过程相类似。</p>
 <p>为了确定包含到年轻代收集集合CSet的老年代分区，JVM通过参数混合周期的最大总次数<code>-XX:G1MixedGCCountTarget</code>(默认8)、堆废物百分比<code>-XX:G1HeapWastePercent</code>(默认5%)。通过候选老年代分区总数与混合周期最大总次数，确定每次包含到CSet的最小分区数量；根据堆废物百分比，当收集达到参数时，不再启动新的混合收集。而每次添加到CSet的分区，则通过计算得到的GC效率进行安排。</p>
 <h3 id="写屏障"><a href="#写屏障" class="headerlink" title="写屏障"></a>写屏障</h3><p>写屏障是指，在改变特定内存的值（实际上也就是写入内存）的时候额外执行的一些动作。在大多数的垃圾回收算法中，都利用到了写屏障。写屏障通常用于在运行时探测并记录回收相关指针(interesting pointer)，在回收器只回收堆中部分区域的时候，任何来自该区域外的指针都需要被写屏障捕获，这些指针将会在垃圾回收的时候作为标记开始的根。JAVA使用的其余的分代的垃圾回收器，都有写屏障。举例来说，每一次将一个老年代对象的引用修改为指向年轻代对象，都会被写屏障捕获，并且记录下来。因此在年轻代回收的时候，就可以避免扫描整个老年代来查找根。</p>
@@ -269,6 +275,70 @@
 </ol>
 <h3 id="SATB"><a href="#SATB" class="headerlink" title="SATB"></a>SATB</h3><p>SATB(snapshot-at-the-beginning)，是最开始用于实时垃圾回收器的一种技术。G1垃圾回收器使用该技术在标记阶段记录一个存活对象的快照。然而在并发标记阶段，应用可能修改了原本的引用，比如删除了一个原本的引用。这就会导致并发标记结束之后的存活对象的快照和SATB不一致。G1是通过在并发标记阶段引入一个写屏障来解决这个问题的：每当存在引用更新的情况，G1会将修改之前的值写入一个log buffer（这个记录会过滤掉原本是空引用的情况），在最终标记(final marking phase)阶段扫描SATB，修正SATB的误差。</p>
 <p>SATB的log buffer如RS的写屏障使用的log buffer一样，都是两级结构，作用机制也是一样的。</p>
+<h2 id="算法详解"><a href="#算法详解" class="headerlink" title="算法详解"></a>算法详解</h2><h3 id="Pause-Prediction-Model"><a href="#Pause-Prediction-Model" class="headerlink" title="Pause Prediction Model"></a>Pause Prediction Model</h3><p>Pause Prediction Model 即停顿预测模型。G1 GC是一个响应时间优先的GC算法，它与CMS最大的不同是，用户可以设定整个GC过程的期望停顿时间，参数-XX:MaxGCPauseMillis指定一个G1收集过程目标停顿时间，默认值200ms，不过它不是硬性条件，只是期望值。那么G1怎么满足用户的期望呢？就需要这个停顿预测模型了。G1根据这个模型统计计算出来的历史数据来预测本次收集需要选择的Region数量，从而尽量满足用户设定的目标停顿时间。</p>
+<h3 id="GC模式"><a href="#GC模式" class="headerlink" title="GC模式"></a>GC模式</h3><p>G1垃圾收集器会触发三种模式垃圾回收模式，分别是young gc、mixed gc 和 full gc。根据不同的条件触发不同的模式：</p>
+<ol>
+<li><p>young gc：发生在年轻代的GC算法，一般对象（除了巨型对象）都是在eden region中分配内存，当所有eden region被耗尽无法申请内存时，就会触发一次young gc，这种触发机制和之前的young gc差不多，执行完一次young gc，活跃对象会被拷贝到survivor region或者晋升到old region中，空闲的region会被放入空闲列表中，等待下次被使用。该模式只会回收young region，算法是通过调整young region的数量来达到软实时目标的。相关参数如下</p>
+<table>
+<thead>
+<tr>
+<th><strong>参数</strong></th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>-XX:MaxGCPauseMillis</td>
+<td>设置G1收集过程目标时间，默认值200ms</td>
+</tr>
+<tr>
+<td>-XX:G1NewSizePercent</td>
+<td>新生代最小值，默认值5%</td>
+</tr>
+<tr>
+<td>-XX:G1MaxNewSizePercent</td>
+<td>新生代最大值，默认值60%</td>
+</tr>
+</tbody></table>
+</li>
+<li><p>mixed gc：当越来越多的对象晋升到老年代old region时，为了避免堆内存被耗尽，虚拟机会触发一个混合的垃圾收集器，即mixed gc，该算法并不是一个old gc，除了回收整个young region，还会回收一部分的old region，这里需要注意：是一部分老年代，而不是全部老年代。该阶段会回收young region和old region，根据算法可以选择哪些old region进行收集，从而可以对垃圾回收的耗时时间进行控制。</p>
+</li>
+<li><p>full gc：如果对象内存分配速度过快，mixed gc来不及回收，导致老年代被填满，就会触发一次full gc，G1的full gc算法就是单线程执行的serial old gc，会导致异常长时间的暂停时间，需要进行不断的调优，尽可能的避免full gc。</p>
+</li>
+</ol>
+<h3 id="GC主要阶段"><a href="#GC主要阶段" class="headerlink" title="GC主要阶段"></a>GC主要阶段</h3><p>整个算法可以分成两大部分：</p>
+<ol>
+<li>Marking cycle phase：标记阶段，该阶段是不断循环进行的；</li>
+<li>Evacuation phase：该阶段是负责把一部分region的活对象拷贝到空Region里面去，然后回收原本的Region空间，该阶段是STW(stop-the-world)的；</li>
+</ol>
+<h4 id="Marking-cycle-phase"><a href="#Marking-cycle-phase" class="headerlink" title="Marking cycle phase"></a>Marking cycle phase</h4><p>算法会自动在young GC和mixed GC之间切换，并且定期触发Marking cycle phase。当达到IHOP阈值<code>-XX:InitiatingHeapOccupancyPercent</code>(老年代占整堆比，默认45%)时，就会执行marking cycle phase。整个标记阶段将由初始标记(Initial Mark)、根分区扫描(Root Region Scanning)、并发标记(Concurrent Marking)、重新标记(Remark)、清除(Cleanup)几个阶段组成。其中，初始标记(随年轻代收集一起活动)、重新标记、清除是STW的，而并发标记如果来不及标记存活对象，则可能在并发标记过程中，G1又触发了几次年轻代收集。</p>
+<ol>
+<li>初始标记阶段（Initial marking phase）：整个过程STW，标记了从GC Root可达的对象。该过程是和young GC的暂停过程一起的；</li>
+<li>根分区扫描阶段（Root region scanning phase）：扫描Survivor Regions中指向老年代的被initial mark phase标记的引用及引用的对象，这一个过程是并发进行的。但是该过程要在下一个young GC开始之前结束；</li>
+<li>并发标记阶段（Concurrent marking phase）：并发标记过程，整个过程gc collector线程与应用线程可以并行执行，标记出GC Root可达对象衍生出去的存活对象，并收集各个Region的存活对象信息。该过程可以被young GC所打断。并发阶段产生的新的引用（或者引用的更新）会被SATB的write barrier记录下来；</li>
+<li>重新标记阶段（Remark phase）：并发标记过程，整个过程gc collector线程与应用线程可以并行执行，标记出GC Root可达对象衍生出去的存活对象，并收集各个Region的存活对象信息。该阶段只需要扫描SATB(Snapshot At The Beginning)的buffer，处理在并发阶段产生的新的存活对象的引用。作为对比，CMS的remark需要扫描整个mod union table的标记为dirty的entry以及全部根；</li>
+<li>清除阶段（Cleanup phase）：清理阶段。该阶段会计算每一个region里面存活的对象，并把完全没有存活对象的Region直接放到空闲列表中。在该阶段还会重置Remember Set。该阶段在计算Region中存活对象的时候，是STW(Stop-the-world)的，而在重置Remember Set的时候，却是可以并行的；</li>
+</ol>
+<h4 id="Evacuation-phase"><a href="#Evacuation-phase" class="headerlink" title="Evacuation phase"></a>Evacuation phase</h4><h5 id="Evacuation-步骤"><a href="#Evacuation-步骤" class="headerlink" title="Evacuation  步骤"></a>Evacuation  步骤</h5><p>Evacuation阶段STW的，大概可以分成两个步骤：第一个步骤是从Region中选出若干个Region进行回收，这些被选中的Region称为Collect Set（简称CSet）；而第二个步骤则是把这些Region中存活的对象复制到空闲的Region中去，同时把这些已经被回收的Region放到空闲Region列表中。</p>
+<p>这两个步骤又可以被分解成三个任务：</p>
+<ol>
+<li>根据RS的日志更新RS：只有在处理完了RS的日志之后，RS才能够保证是准确的，完整的，这也是Evacuation是STW的重要原因；</li>
+<li>扫描RS和其余的根来确定存活对象：该阶段实际上最主要依赖于RS；</li>
+<li>拷贝存活对象：该阶段只要从2中确定的根触发，沿着引用链一直追溯下去，将存活对象复制到新的region就可以。这个过程中，可能有一部分的年轻代对象会被提升到老年代；</li>
+</ol>
+<h5 id="Evacuation-时机"><a href="#Evacuation-时机" class="headerlink" title="Evacuation 时机"></a>Evacuation 时机</h5><p>Evacuation的触发时机在不同的模式下会有一些不同。在不同的模式下都相同的是，只要堆的使用率达到了某个阈值，就必然会触发Evacuation。这是为了确保在Evacuation的时候有足够的空闲Region来容纳存活对象。</p>
+<p>在young GC的情况下，G1会选择N个region作为CSet，该CSet首先需要满足软实时的要求，而一旦已经有N个region已经被分配了，那么就会执行一次Evacuation。G1会尽可能的执行mixed GC。唯一的限制就是mixed GC也需要满足软实时的要求。</p>
+<p>G1触发Evacuation的原则大概是：</p>
+<ol>
+<li>如果被分配的young region数量满足young GC的要求，那么就会触发young GC；</li>
+<li>如果被分配的young region数量不满足young GC，就会进一步考察加上old region的数量，能否满足old GC软实时的要求；</li>
+</ol>
+<h2 id="参考文档"><a href="#参考文档" class="headerlink" title="参考文档"></a>参考文档</h2><ol>
+<li><a target="_blank" rel="noopener" href="https://www.jianshu.com/p/aef0f4765098">https://www.jianshu.com/p/aef0f4765098</a></li>
+<li><a target="_blank" rel="noopener" href="https://blog.csdn.net/coderlius/article/details/79272773">https://blog.csdn.net/coderlius/article/details/79272773</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.jianshu.com/p/0f1f5adffdc1">https://www.jianshu.com/p/0f1f5adffdc1</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.cnblogs.com/GrimMjx/p/12234564.html#_label0_8">https://www.cnblogs.com/GrimMjx/p/12234564.html#_label0_8</a></li>
+<li><a target="_blank" rel="noopener" href="https://tech.meituan.com/2016/09/23/g1.html">https://tech.meituan.com/2016/09/23/g1.html</a></li>
+</ol>
 
     </div>
 
@@ -349,7 +419,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
-          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%A6%82%E8%BF%B0"><span class="nav-number">1.</span> <span class="nav-text">概述</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%87%8D%E8%A6%81%E6%A6%82%E5%BF%B5"><span class="nav-number">1.1.</span> <span class="nav-text">重要概念</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Region"><span class="nav-number">1.1.1.</span> <span class="nav-text">Region</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#RSet"><span class="nav-number">1.1.2.</span> <span class="nav-text">RSet</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#CSet"><span class="nav-number">1.1.3.</span> <span class="nav-text">CSet</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#CSet-of-Young-Collection"><span class="nav-number">1.1.3.1.</span> <span class="nav-text">CSet of Young Collection</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#CSet-of-Mixed-Collection"><span class="nav-number">1.1.3.2.</span> <span class="nav-text">CSet of Mixed Collection</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%86%99%E5%B1%8F%E9%9A%9C"><span class="nav-number">1.1.4.</span> <span class="nav-text">写屏障</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#RSet%E5%86%99%E5%B1%8F%E9%9A%9C"><span class="nav-number">1.1.4.1.</span> <span class="nav-text">RSet写屏障</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#SATB"><span class="nav-number">1.1.5.</span> <span class="nav-text">SATB</span></a></li></ol></li></ol></li></ol></div>
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%A6%82%E8%BF%B0"><span class="nav-number">1.</span> <span class="nav-text">概述</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%87%8D%E8%A6%81%E6%A6%82%E5%BF%B5"><span class="nav-number">1.1.</span> <span class="nav-text">重要概念</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Region"><span class="nav-number">1.1.1.</span> <span class="nav-text">Region</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%9C%AC%E5%9C%B0%E5%88%86%E9%85%8D%E7%BC%93%E5%86%B2"><span class="nav-number">1.1.2.</span> <span class="nav-text">本地分配缓冲</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#TLAB"><span class="nav-number">1.1.2.1.</span> <span class="nav-text">TLAB</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#GCLAB"><span class="nav-number">1.1.2.2.</span> <span class="nav-text">GCLAB</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#PLAB"><span class="nav-number">1.1.2.3.</span> <span class="nav-text">PLAB</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#RSet"><span class="nav-number">1.1.3.</span> <span class="nav-text">RSet</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#CSet"><span class="nav-number">1.1.4.</span> <span class="nav-text">CSet</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#CSet-of-Young-Collection"><span class="nav-number">1.1.4.1.</span> <span class="nav-text">CSet of Young Collection</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#CSet-of-Mixed-Collection"><span class="nav-number">1.1.4.2.</span> <span class="nav-text">CSet of Mixed Collection</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%86%99%E5%B1%8F%E9%9A%9C"><span class="nav-number">1.1.5.</span> <span class="nav-text">写屏障</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#RSet%E5%86%99%E5%B1%8F%E9%9A%9C"><span class="nav-number">1.1.5.1.</span> <span class="nav-text">RSet写屏障</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#SATB"><span class="nav-number">1.1.6.</span> <span class="nav-text">SATB</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%AE%97%E6%B3%95%E8%AF%A6%E8%A7%A3"><span class="nav-number">1.2.</span> <span class="nav-text">算法详解</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Pause-Prediction-Model"><span class="nav-number">1.2.1.</span> <span class="nav-text">Pause Prediction Model</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#GC%E6%A8%A1%E5%BC%8F"><span class="nav-number">1.2.2.</span> <span class="nav-text">GC模式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#GC%E4%B8%BB%E8%A6%81%E9%98%B6%E6%AE%B5"><span class="nav-number">1.2.3.</span> <span class="nav-text">GC主要阶段</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#Marking-cycle-phase"><span class="nav-number">1.2.3.1.</span> <span class="nav-text">Marking cycle phase</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Evacuation-phase"><span class="nav-number">1.2.3.2.</span> <span class="nav-text">Evacuation phase</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#Evacuation-%E6%AD%A5%E9%AA%A4"><span class="nav-number">1.2.3.2.1.</span> <span class="nav-text">Evacuation  步骤</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Evacuation-%E6%97%B6%E6%9C%BA"><span class="nav-number">1.2.3.2.2.</span> <span class="nav-text">Evacuation 时机</span></a></li></ol></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E6%96%87%E6%A1%A3"><span class="nav-number">1.3.</span> <span class="nav-text">参考文档</span></a></li></ol></li></ol></div>
       </div>
       <!--/noindex-->
 
