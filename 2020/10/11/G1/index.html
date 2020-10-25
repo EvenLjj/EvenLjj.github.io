@@ -28,12 +28,12 @@
 <meta property="og:description" content="概述G1是 Java 9 的默认垃圾收集器，该收集器可以工作在新生代，也可以工作在老年代。同优秀的CMS垃圾收集器一样，G1也是关注最小时延的垃圾回收器，也同样适合大尺寸堆内存的垃圾收集，整个垃圾收集处理过程并行和并发，并且做到了可预测停顿，官方也推荐使用G1来代替选择CMS。G1最大的特点是引入分区的思路，将整个Java堆内存划分成多个大小相等的Region，弱化了分代的概念，新生代和老年代不再">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="http://yoursite.com/2020/10/11/G1/region.png">
-<meta property="og:image" content="http://yoursite.com/2020/10/11/G1/Users/EvenL/OneDrive/blog/source/_posts/G1/regiondetail.png">
-<meta property="og:image" content="http://yoursite.com/2020/10/11/G1/Users/EvenL/OneDrive/blog/source_posts/G1/TLAB.png">
+<meta property="og:image" content="http://yoursite.com/2020/10/11/G1/regiondetail.png">
+<meta property="og:image" content="http://yoursite.com/2020/10/11/G1/TLAB.png">
 <meta property="og:image" content="http://yoursite.com/2020/10/11/G1/Rset.png">
 <meta property="og:image" content="http://yoursite.com/2020/10/11/G1/Cset.png">
 <meta property="article:published_time" content="2020-10-11T03:13:05.000Z">
-<meta property="article:modified_time" content="2020-10-25T10:01:19.320Z">
+<meta property="article:modified_time" content="2020-10-25T10:05:05.086Z">
 <meta property="article:author" content="EvenLjj">
 <meta property="article:tag" content="java">
 <meta name="twitter:card" content="summary">
@@ -203,7 +203,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2020-10-25 18:01:19" itemprop="dateModified" datetime="2020-10-25T18:01:19+08:00">2020-10-25</time>
+                <time title="修改时间：2020-10-25 18:05:05" itemprop="dateModified" datetime="2020-10-25T18:05:05+08:00">2020-10-25</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -238,7 +238,7 @@
 <p><img src="/2020/10/11/G1/region.png"></p>
 <p>堆内存中一个Region的大小可以通过<code>-XX:G1HeapRegionSize</code>参数指定，大小区间只能是1M、2M、4M、8M、16M和32M，总之是2的幂次方，G1HeapRegionSize设定为默认值是根据堆初始化时计算Region的实践大小，默认把堆内存按照2048份均分，最后得到一个合理的大小。</p>
 <p>每一个分配的Region，都可以分成两个部分，已分配的和未被分配的。它们之间的界限被称为top。总体上来说，把一个对象分配到Region内，只需要简单增加top的值。这个做法实际上就是bump-the-pointer。过程如下：</p>
-<img src="/2020/10/11/G1/Users\EvenL\OneDrive\blog\source\_posts\G1\regiondetail.png" style="zoom:80%;">
+<img src="/2020/10/11/G1/regiondetail.png" style="zoom:80%;">
 
 <p>Region可以说是G1回收器一次回收的最小单元。即每一次回收都是回收N个Region。这个N是多少，主要受到G1回收的效率和用户设置的软实时目标有关。每一次的回收，G1会选择可能回收最多垃圾的Region进行回收。与此同时，G1回收器会维护一个空间Region的链表。每次回收之后的Region都会被加入到这个链表中。<br> 每一次都只有一个Region处于被分配的状态中，被称为current region。在多线程的情况下，这会带来并发的问题。G1回收器采用和CMS一样的TLABs的手段。即为每一个线程分配一个Buffer，线程分配内存就在这个Buffer内分配。但是当线程耗尽了自己的Buffer之后，需要申请新的Buffer。这个时候依然会带来并发的问题。G1回收器采用的是CAS（Compate And Swap）操作。</p>
 <p>为线程分配Buffer的过程大概是：</p>
@@ -250,7 +250,7 @@
 <p>显然的，采用TLABs的技术，就会带来碎片。举例来说，当一个线程在自己的Buffer里面分配的时候，虽然Buffer里面还有剩余的空间，但是却因为分配的对象过大以至于这些空闲空间无法容纳，此时线程只能去申请新的Buffer，而原来的Buffer中的空闲空间就被浪费了。Buffer的大小和线程数量都会影响这些碎片的多寡。</p>
 <h3 id="本地分配缓冲"><a href="#本地分配缓冲" class="headerlink" title="本地分配缓冲"></a>本地分配缓冲</h3><p>Local allocation buffer (Lab)，本地分配缓冲。由于分区的思想，每个线程均可以”认领”某个分区用于线程本地的内存分配，而不需要顾及分区是否连续。因此，每个应用线程和GC线程都会独立的使用分区，进而减少同步时间，提升GC效率，这个分区称为本地分配缓冲区(Lab)。</p>
 <h4 id="TLAB"><a href="#TLAB" class="headerlink" title="TLAB"></a>TLAB</h4><p>Thread Local Allocation Buffers，线程本地分配缓存。其中，应用线程可以独占一个本地缓冲区(TLAB)来创建的对象，而大部分都会落入Eden区域(巨型对象或分配失败除外)，因此TLAB的分区属于Eden空间。TLAB分配策略如下：</p>
-<p><img src="/2020/10/11/G1/Users\EvenL\OneDrive\blog\source_posts\G1\TLAB.png"></p>
+<p><img src="/2020/10/11/G1/TLAB.png"></p>
 <h4 id="GCLAB"><a href="#GCLAB" class="headerlink" title="GCLAB"></a>GCLAB</h4><p>GC Local Allocation Buffers，垃圾回收本地缓冲区。而每次垃圾收集时，每个GC线程同样可以独占一个本地缓冲区(GCLAB)用来转移对象，每次回收会将对象复制到Suvivor空间或老年代空间。</p>
 <h4 id="PLAB"><a href="#PLAB" class="headerlink" title="PLAB"></a>PLAB</h4><p>Promotion Local Allocation Buffers，晋升本地缓冲区(。对于从Eden/Survivor空间晋升(Promotion)到Survivor或者老年代空间的对象，同样有GC独占的本地缓冲区进行操作，该部分称为晋升本地缓冲区(PLAB)。</p>
 <h3 id="RSet"><a href="#RSet" class="headerlink" title="RSet"></a>RSet</h3><p>在串行和并行收集器中，GC通过整堆扫描，来确定对象是否处于可达路径中。然而G1为了避免STW式的整堆扫描，在每个分区记录了一个已记忆集合(Remember Set，简称RSet)，内部类似一个反向指针，记录引用分区内对象的卡片索引。当要回收该分区时，通过扫描分区的RSet，来确定引用本分区内的对象是否存活，进而确定本分区内的对象存活情况。在回收一个Region的时候不需要执行全堆扫描，只需要检查它的RS就可以找到外部引用，而这些引用就是initial mark的根之一。</p>
