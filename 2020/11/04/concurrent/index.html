@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"always","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="概述进程是资源分配的最小单位，线程是CPU调度的最小单位。进程是抢占处理机的调度单位，线程属于某个进程，共享其资源。多线程是实现并发机制的一种有效手段。进程和线程一样，都是实现并发的一个基本单位。线程是比进程更小的执行单位，线程是进程的基础之上进行进一步的划分。所谓多线程是指一个进程在执行过程中可以产生多个更小的程序单元，这些更小的单元称为线程，这些线程可以同时存在，同时运行，一个进程可能包含多个">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Java线程与线程池">
+<meta property="og:url" content="http://yoursite.com/2020/11/04/concurrent/index.html">
+<meta property="og:site_name" content="个人成长博客">
+<meta property="og:description" content="概述进程是资源分配的最小单位，线程是CPU调度的最小单位。进程是抢占处理机的调度单位，线程属于某个进程，共享其资源。多线程是实现并发机制的一种有效手段。进程和线程一样，都是实现并发的一个基本单位。线程是比进程更小的执行单位，线程是进程的基础之上进行进一步的划分。所谓多线程是指一个进程在执行过程中可以产生多个更小的程序单元，这些更小的单元称为线程，这些线程可以同时存在，同时运行，一个进程可能包含多个">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://yoursite.com/2020/11/04/concurrent/threadstate.png">
+<meta property="og:image" content="http://yoursite.com/2020/11/04/concurrent/executor.png">
+<meta property="og:image" content="http://yoursite.com/2020/11/04/concurrent/process.png">
+<meta property="og:image" content="http://yoursite.com/2020/11/04/concurrent/poolprocess.png">
+<meta property="og:image" content="http://yoursite.com/2020/11/04/concurrent/ThreadPoolState.jpg">
+<meta property="og:image" content="http://yoursite.com/2020/11/04/concurrent/forkj&amp;join.png">
+<meta property="article:published_time" content="2020-11-04T13:32:08.000Z">
+<meta property="article:modified_time" content="2020-11-21T07:12:00.754Z">
+<meta property="article:author" content="EvenLjj">
+<meta property="article:tag" content="java">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://yoursite.com/2020/11/04/concurrent/threadstate.png">
+
+<link rel="canonical" href="http://yoursite.com/2020/11/04/concurrent/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Java线程与线程池 | 个人成长博客</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">个人成长博客</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">纸上得来终觉浅，绝知此事要躬行</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/11/04/concurrent/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="EvenLjj">
+      <meta itemprop="description" content="记录最近所学所思，让岁月留下汗水的痕迹">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="个人成长博客">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Java线程与线程池
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2020-11-04 21:32:08" itemprop="dateCreated datePublished" datetime="2020-11-04T21:32:08+08:00">2020-11-04</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-11-21 15:12:00" itemprop="dateModified" datetime="2020-11-21T15:12:00+08:00">2020-11-21</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/java/" itemprop="url" rel="index"><span itemprop="name">java</span></a>
+                </span>
+            </span>
+
+          
+            <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv" style="display: none;">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span id="busuanzi_value_page_pv"></span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h1><p>进程是资源分配的最小单位，线程是CPU调度的最小单位。进程是抢占处理机的调度单位，线程属于某个进程，共享其资源。多线程是实现并发机制的一种有效手段。进程和线程一样，都是实现并发的一个基本单位。线程是比进程更小的执行单位，线程是进程的基础之上进行进一步的划分。所谓多线程是指一个进程在执行过程中可以产生多个更小的程序单元，这些更小的单元称为线程，这些线程可以同时存在，同时运行，一个进程可能包含多个同时执行的线程。</p>
+<h1 id="Java线程"><a href="#Java线程" class="headerlink" title="Java线程"></a>Java线程</h1><h2 id="线程的两种创建方式"><a href="#线程的两种创建方式" class="headerlink" title="线程的两种创建方式"></a>线程的两种创建方式</h2><ol>
+<li>对 Thread 类进行派生并覆盖 run方法，调用start方法会创建一个新的子线程并启动，直接调用run方法只是一个普通方法调用；</li>
+<li>通过实现Runnable接口创建；</li>
+</ol>
+<h2 id="如何处理线程的返回值"><a href="#如何处理线程的返回值" class="headerlink" title="如何处理线程的返回值"></a>如何处理线程的返回值</h2><ol>
+<li><p>主线程等待法（在主线程编写等待逻辑）</p>
+</li>
+<li><p>使用Thread类的join()阻塞当前线程以等待子线程处理完毕</p>
+</li>
+<li><p>通过Callable接口实现：通过Future Or 线程池获取</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> java.util.concurrent.Callable;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MyCallable</span> <span class="keyword">implements</span> <span class="title">Callable</span>&lt;<span class="title">String</span>&gt; </span>&#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> String <span class="title">call</span><span class="params">()</span> <span class="keyword">throws</span> Exception</span>&#123;</span><br><span class="line">        String value=<span class="string">&quot;test&quot;</span>;</span><br><span class="line">        System.out.println(<span class="string">&quot;Ready to work&quot;</span>);</span><br><span class="line">        Thread.currentThread().sleep(<span class="number">5000</span>);</span><br><span class="line">        System.out.println(<span class="string">&quot;task done&quot;</span>);</span><br><span class="line">        <span class="keyword">return</span>  value;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Futrue实现</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> java.util.concurrent.ExecutionException;</span><br><span class="line"><span class="keyword">import</span> java.util.concurrent.FutureTask;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">FutureTaskDemo</span> </span>&#123;</span><br><span class="line">    </span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> ExecutionException, InterruptedException </span>&#123;</span><br><span class="line">        FutureTask&lt;String&gt; task = <span class="keyword">new</span> FutureTask&lt;String&gt;(<span class="keyword">new</span> MyCallable());</span><br><span class="line">        <span class="keyword">new</span> Thread(task).start();</span><br><span class="line">        <span class="keyword">if</span>(!task.isDone())&#123;</span><br><span class="line">            System.out.println(<span class="string">&quot;task has not finished, please wait!&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line">        System.out.println(<span class="string">&quot;task return: &quot;</span> + task.get());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>线程池实现</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> java.util.concurrent.ExecutionException;</span><br><span class="line"><span class="keyword">import</span> java.util.concurrent.ExecutorService;</span><br><span class="line"><span class="keyword">import</span> java.util.concurrent.Executors;</span><br><span class="line"><span class="keyword">import</span> java.util.concurrent.Future;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">ThreadPoolDemo</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</span><br><span class="line">        ExecutorService newCachedThreadPool = Executors.newCachedThreadPool();</span><br><span class="line">        Future&lt;String&gt; future = newCachedThreadPool.submit(<span class="keyword">new</span> MyCallable());</span><br><span class="line">        <span class="keyword">if</span>(!future.isDone())&#123;</span><br><span class="line">            System.out.println(<span class="string">&quot;task has not finished, please wait!&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            System.out.println(future.get());</span><br><span class="line">        &#125; <span class="keyword">catch</span> (InterruptedException e) &#123;</span><br><span class="line">            e.printStackTrace();</span><br><span class="line">        &#125; <span class="keyword">catch</span> (ExecutionException e) &#123;</span><br><span class="line">            e.printStackTrace();</span><br><span class="line">        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">            newCachedThreadPool.shutdown();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+</li>
+</ol>
+<h2 id="关键方法的区别"><a href="#关键方法的区别" class="headerlink" title="关键方法的区别"></a>关键方法的区别</h2><h3 id="Sleep和Wait的区别"><a href="#Sleep和Wait的区别" class="headerlink" title="Sleep和Wait的区别"></a>Sleep和Wait的区别</h3><ol>
+<li>基本差别：sleep是Thread类的方法，wait是Object类中的方法。使用上sleep()可以在任意地方使用，wait()只能在synchrnized方法或者synchrnied块中使用</li>
+<li>本质区别：<code>Thread.sleep()</code>只会让出CPU，不会导致锁行为的改变；<code>Obkect.wait()</code>不仅让出CPU，还会释放已经占有的同步资源锁</li>
+</ol>
+<h3 id="notify和notifyAll的区别"><a href="#notify和notifyAll的区别" class="headerlink" title="notify和notifyAll的区别"></a>notify和notifyAll的区别</h3><p>wait方法等待可以通过notify和notifyAll来唤醒。介绍两者的区别前，需要了解两个概念，一个是锁池一个是等待池。</p>
+<p>锁池：假设线程A已经拥有某个对象（不是类）的锁，而其它线程B、C想要调用这个对象的某个synchrnized方法（或者块），由于B、C线程必须先获得该对象锁的拥有权，而恰巧该对象的锁正在被A线程占有。此时B、C线程会被阻塞，进入一个地方去等待锁的释放，这个地方就是该对象的锁池。</p>
+<p>等待池：线程A调用某个对象的wait方法，线程A就会释放该对象的锁，同时线程A进入到了该对象的等待池中，进入等待池中的线程不会区竞争该对象的锁。</p>
+<p>notifyAll，会让所有处于等待池的线程全部进入锁池去竞争获取锁的机会。notify只会随机选取一个处于等待池中的线程进入锁池中竞争获取锁的机会。</p>
+<h3 id="yield"><a href="#yield" class="headerlink" title="yield"></a>yield</h3><p>当调用<code>Thread.yield()</code>方法时，会给线程调度器一个当前线程愿意让出CPU使用得提示，但是线程调度器可能会忽略这个暗示。yield方法也不会导致锁行为的改变</p>
+<h3 id="interrupt"><a href="#interrupt" class="headerlink" title="interrupt"></a>interrupt</h3><p>调用interrupt()，通知线程应该中断了</p>
+<ol>
+<li>如果线程处于被阻塞状态，那么线程将立即退出阻塞状态，并且抛出一个InterruptedException异常</li>
+<li>如果线程处于正常活动状态，那么会将该线程的中断标志设置为true。被设置中断标志的线程将继续正常运行，不受影响。</li>
+</ol>
+<p>所以用户需要及时中断线程可以通过判断中断标志位来自行终止线程的执行。</p>
+<h2 id="线程的状态"><a href="#线程的状态" class="headerlink" title="线程的状态"></a>线程的状态</h2><p>线程的几种状态，以及状态转换如下：</p>
+<p><img src="/2020/11/04/concurrent/threadstate.png"></p>
+<ol>
+<li>新建（New）：创建尚未启动的线程状态</li>
+<li>运行（Runable）：包含Runnable和Running，线程对象创建后，其他线程(比如 main 线程）调用了该对象 的 start ()方法。该状态的线程位于可运行线程池中，等待被线程调度选中，获取cpu 的使用权之后进入Running状态 </li>
+<li>无限期等待（Waiting）：不会被分配CPU执行时间，需要显示<ol>
+<li>没有设置Timeout参数的<code>Object.wait()</code>方法</li>
+<li>没有设置Timeout参数的<code>Thread.join()</code>方法</li>
+<li><code>LockSupport.park()</code>方法</li>
+</ol>
+</li>
+<li>限期等待（Timed Waiting）：在一定时间后会由系统自动唤醒</li>
+<li>阻塞（Blocked）：等待获取排它锁</li>
+<li>结束（Terminated）：已终止线程的状态，线程已经结束执行</li>
+</ol>
+<h1 id="线程池"><a href="#线程池" class="headerlink" title="线程池"></a>线程池</h1><p>前面提到了创建线程的两种方式，如果并发请求的数量特别多，每个线程执行的时间特别短，所以会出现频繁创建并销毁线程，如此一来会大大降低系统的效率，就会出现服务器为每个线程创建和销毁的时间和消耗的系统资源，比处理实际用户所花的时间和资源要多。因此重复利用线程，是非常有必要的。通过线程池降低系统资源消耗，通过重用已存在的线程，<strong>降低</strong>线程创建和销毁造成的<strong>消耗</strong>，同时可以<strong>增加</strong>对于线程的<strong>管理</strong>。</p>
+<h2 id="线程池API"><a href="#线程池API" class="headerlink" title="线程池API"></a>线程池API</h2><h3 id="接口定义和实现类"><a href="#接口定义和实现类" class="headerlink" title="接口定义和实现类"></a>接口定义和实现类</h3><table>
+<thead>
+<tr>
+<th>类型</th>
+<th>名称</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>类</td>
+<td>Executors</td>
+<td>创建线程池的工厂类</td>
+</tr>
+<tr>
+<td>接口</td>
+<td>Executor</td>
+<td>最上层接口，定义了执行任务的方法execute</td>
+</tr>
+<tr>
+<td>接口</td>
+<td>ExecutorService</td>
+<td>继承了Executor接口，拓展了Callable、Future、关闭方法，具备管理执行器和任务生命周期的方法，提交任务机制更完善</td>
+</tr>
+<tr>
+<td>接口</td>
+<td>ScheduledExecutorService</td>
+<td>继承了ExecutorService，支持Future并增加了定时任务相关的方法</td>
+</tr>
+<tr>
+<td>实现类</td>
+<td>TheadPoolExcutor</td>
+<td>基础、标准的线程池实现</td>
+</tr>
+<tr>
+<td>实现类</td>
+<td>ScheduledThreadPoolExecutor</td>
+<td>继承了TheadPoolExcutor，实现了ScheduledExecutorService中相关定时任务的方法</td>
+</tr>
+</tbody></table>
+<h3 id="类的继承关系"><a href="#类的继承关系" class="headerlink" title="类的继承关系"></a>类的继承关系</h3><img src="/2020/11/04/concurrent/executor.png" style="zoom:50%;">
+
+<h3 id="核心参数"><a href="#核心参数" class="headerlink" title="核心参数"></a>核心参数</h3><p>TheadPoolExcutor是最基础、标准的线程池实现，主要参数如下：</p>
+<ol>
+<li>corePoolSize（线程池基本大小）：当向线程池提交一个任务时，若线程池已创建的线程数小于corePoolSize，即便此时存在空闲线程，也会通过创建一个新线程来执行该任务，直到已创建的线程数大于或等于corePoolSize时，（除了利用提交新任务来创建和启动线程，也可以通过 prestartCoreThread() 或 prestartAllCoreThreads() 方法来提前启动线程池中的基本线程）</li>
+<li>maximumPoolSize（线程池最大大小）：线程池所允许的最大线程个数。当队列满了，且已创建的线程数小于maximumPoolSize，则线程池会创建新的线程来执行任务。另外，对于无界队列，可忽略该参数</li>
+<li>keepAliveTime（线程存活保持时间）当线程池中线程数大于核心线程数时，线程的空闲时间如果超过线程存活时间，那么这个线程就会被销毁，直到线程池中的线程数小于等于核心线程数</li>
+<li>workQueue（任务队列）：用于传输和保存等待执行任务的阻塞队列</li>
+<li>threadFactory（线程工厂）：用于创建新线程。threadFactory创建的线程也是采用new Thread()方式，threadFactory创建的线程名都具有统一的风格：pool-m-thread-n（m为线程池的编号，n为线程池内的线程编号）</li>
+<li>handler（线程饱和策略）：当线程池和队列都满了，再加入线程会执行此策略，主要策略有：<ul>
+<li>AbortPolicy：直接抛出异常，这是默认策略</li>
+<li>CallerRunsPolicy：用调用者所在的线程来执行任务</li>
+<li>DiscardOldestPolicy：丢弃队列中靠前的任务，并执行当前任务</li>
+<li>DiscardPolicy：直接丢弃任务</li>
+<li>实现RejectedExecutionHandler接口的自定义handler</li>
+</ul>
+</li>
+</ol>
+<h3 id="执行过程"><a href="#执行过程" class="headerlink" title="执行过程"></a>执行过程</h3><p>TheadPoolExcutor执行executor之后如下图，首先会进入workqueue，然后创建或者使用已有的workThread工作线程来执行。</p>
+<img src="/2020/11/04/concurrent/process.png" style="zoom: 50%;">
+
+<p>其中：</p>
+<ol>
+<li>如果当前池里运行的线程数量小于corePoolSize,则创建新线程（需要获取全局锁）</li>
+<li>如果当前的线程数量大于corePoolSize，则将任务加入BlockQueue中</li>
+<li>如果队列已满，但是线程数小于最大线程数量，则继续添加线程（需要再次获取全局锁）</li>
+<li>已达到最大线程数量，任务队列也已经满了，任务将被拒绝，执行拒绝策略</li>
+</ol>
+<p><img src="/2020/11/04/concurrent/poolprocess.png"></p>
+<h3 id="如何配置线程池大小"><a href="#如何配置线程池大小" class="headerlink" title="如何配置线程池大小"></a>如何配置线程池大小</h3><ol>
+<li>CPU密集型任务：尽量将线程池设置较小一点，一般为CPU核心数+1。 因为CPU密集型任务使得CPU使用率很高，若开过多的线程数，会造成CPU过度切换</li>
+<li>IO密集型任务：可以将线程池设置稍大，一般为2*CPU核心数。 IO密集型任务CPU使用率并不高，因此可以让CPU在等待IO的时候有其他线程去处理别的任务，充分利用CPU时间</li>
+<li>混合型任务：可以将任务分成IO密集型和CPU密集型任务，然后分别用不同的线程池去处理。 只要分完之后两个任务的执行时间相差不大，那么就会比串行执行来的高效。因为如果划分之后两个任务执行时间有数据级的差距，那么拆分没有意义。因为先执行完的任务就要等后执行完的任务，最终的时间仍然取决于后执行完的任务，而且还要加上任务拆分与合并的开销，得不偿失</li>
+</ol>
+<h3 id="线程池的状态"><a href="#线程池的状态" class="headerlink" title="线程池的状态"></a>线程池的状态</h3><ol>
+<li>RUNNING:  可以接受新任务，并且可以执行阻塞队列中的任务。线程池被一旦被创建，就处于RUNNING状态，并且线程池中的任务数为0</li>
+<li>SHUTDOWN: 不可以接受新任务，但是可以执行阻塞队列中的任务。调用线程池的shutdown()接口时，线程池由RUNNING -&gt; SHUTDOWN</li>
+<li>STOP:    不可以接受新任务，不执行阻塞队列中的任务，并且还能打断正在执行的任务。调用线程池的shutdownNow()接口时，线程池由(RUNNING or SHUTDOWN ) -&gt; STOP</li>
+<li>TIDYING:  所有的任务都被终止,线程池中的任务数是0的时候线程的状态将改变成TIDYING，并且经会执行terminated()。当线程池在SHUTDOWN状态下，阻塞队列为空并且线程池中执行的任务也为空时，就会由 SHUTDOWN -&gt; TIDYING；当线程池在STOP状态下，线程池中执行的任务为空时，就会由STOP -&gt; TIDYING</li>
+<li>TERMINATED：线程池彻底终止，就变成TERMINATED状态。线程池处在TIDYING状态时，执行完terminated()之后，就会由 TIDYING -&gt; TERMINATED</li>
+</ol>
+<p>线程池的状态转换图如下：</p>
+<img src="/2020/11/04/concurrent/ThreadPoolState.jpg" style="zoom: 67%;">
+
+<h2 id="五种类型的线程池"><a href="#五种类型的线程池" class="headerlink" title="五种类型的线程池"></a>五种类型的线程池</h2><p>Executors类目前提供了5种不同的线程池：</p>
+<ol>
+<li><p>newFixedThreadPool：通过TheadPoolExcutor构建，创建一个固定大小的线程池，因为采用无界的阻塞队列，所以实际线程数量永远不会变化，适用于负载较重的场景，对当前线程数量进行限制。workQueue为LinkedBlockingQueue（保证线程数可控，不会造成线程过多，导致系统负载更为严重）</p>
+</li>
+<li><p>newCachedThreadPool：通过TheadPoolExcutor构建，用来创建一个可以无限扩大的线程池，适用于负载较轻的场景，执行短期异步任务。workQueue为SynchronousBlockingQueue（可以使得任务快速得到执行，因为任务时间执行短，可以很快结束，也不会造成cpu过度切换）有以下特点：</p>
+<ul>
+<li>试图缓存线程并重用，当无缓存线程可用时，就会创建新的工作线程</li>
+<li>如果线程闲置的时间超过阈值，则会被终止移出缓存</li>
+<li>系统长时间闲置的时候，不会消耗资源</li>
+</ul>
+</li>
+<li><p>newSingleThreadExecutor：通过TheadPoolExcutor构建，创建一个单线程的线程池，适用于需要保证顺序执行各个任务。如果线程异常结束，会有另一个线程取代它。workQueue为LinkedBlockingQueue</p>
+</li>
+<li><p>newSingleThreadScheduledExecutor和newScheduledThreadPool：通过ScheduledThreadPoolExecutor构建，适用于执行延时或者周期性任务。区别在于一个是否单一线程。workQueue为DelayedWorkQueue</p>
+</li>
+<li><p>newWorkStealingPool: JDK8中提供，通过ForkJoinPool构建，自定义workqueue，利用working-stealing算法，并行处理任务，不保证处理顺序。Fork/Join框架：把大任务分割成若干小任务并行执行，最终汇总每个小任务结果后得到大任务结果框架。当一个队列中任务完成并且另一个队列任务未完成是，会根据working-stealing算法，已完成的线程会窃取未完成队列中的任务执行。这里的任务队列一般设置为双端队列。窃取任务的线程从队尾窃取。</p>
+<img src="/2020/11/04/concurrent/forkj&amp;join.png" style="zoom: 80%;">
+
+
+
+</li>
+</ol>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/java/" rel="tag"># java</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/10/11/G1/" rel="prev" title="G1垃圾收集器">
+      <i class="fa fa-chevron-left"></i> G1垃圾收集器
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2020/11/09/redis-install/" rel="next" title="Redis离线安装">
+      Redis离线安装 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%A6%82%E8%BF%B0"><span class="nav-number">1.</span> <span class="nav-text">概述</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Java%E7%BA%BF%E7%A8%8B"><span class="nav-number">2.</span> <span class="nav-text">Java线程</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BA%BF%E7%A8%8B%E7%9A%84%E4%B8%A4%E7%A7%8D%E5%88%9B%E5%BB%BA%E6%96%B9%E5%BC%8F"><span class="nav-number">2.1.</span> <span class="nav-text">线程的两种创建方式</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%A6%82%E4%BD%95%E5%A4%84%E7%90%86%E7%BA%BF%E7%A8%8B%E7%9A%84%E8%BF%94%E5%9B%9E%E5%80%BC"><span class="nav-number">2.2.</span> <span class="nav-text">如何处理线程的返回值</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%85%B3%E9%94%AE%E6%96%B9%E6%B3%95%E7%9A%84%E5%8C%BA%E5%88%AB"><span class="nav-number">2.3.</span> <span class="nav-text">关键方法的区别</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Sleep%E5%92%8CWait%E7%9A%84%E5%8C%BA%E5%88%AB"><span class="nav-number">2.3.1.</span> <span class="nav-text">Sleep和Wait的区别</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#notify%E5%92%8CnotifyAll%E7%9A%84%E5%8C%BA%E5%88%AB"><span class="nav-number">2.3.2.</span> <span class="nav-text">notify和notifyAll的区别</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#yield"><span class="nav-number">2.3.3.</span> <span class="nav-text">yield</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#interrupt"><span class="nav-number">2.3.4.</span> <span class="nav-text">interrupt</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BA%BF%E7%A8%8B%E7%9A%84%E7%8A%B6%E6%80%81"><span class="nav-number">2.4.</span> <span class="nav-text">线程的状态</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%BA%BF%E7%A8%8B%E6%B1%A0"><span class="nav-number">3.</span> <span class="nav-text">线程池</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BA%BF%E7%A8%8B%E6%B1%A0API"><span class="nav-number">3.1.</span> <span class="nav-text">线程池API</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%8E%A5%E5%8F%A3%E5%AE%9A%E4%B9%89%E5%92%8C%E5%AE%9E%E7%8E%B0%E7%B1%BB"><span class="nav-number">3.1.1.</span> <span class="nav-text">接口定义和实现类</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%B1%BB%E7%9A%84%E7%BB%A7%E6%89%BF%E5%85%B3%E7%B3%BB"><span class="nav-number">3.1.2.</span> <span class="nav-text">类的继承关系</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%A0%B8%E5%BF%83%E5%8F%82%E6%95%B0"><span class="nav-number">3.1.3.</span> <span class="nav-text">核心参数</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%89%A7%E8%A1%8C%E8%BF%87%E7%A8%8B"><span class="nav-number">3.1.4.</span> <span class="nav-text">执行过程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%A6%82%E4%BD%95%E9%85%8D%E7%BD%AE%E7%BA%BF%E7%A8%8B%E6%B1%A0%E5%A4%A7%E5%B0%8F"><span class="nav-number">3.1.5.</span> <span class="nav-text">如何配置线程池大小</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BA%BF%E7%A8%8B%E6%B1%A0%E7%9A%84%E7%8A%B6%E6%80%81"><span class="nav-number">3.1.6.</span> <span class="nav-text">线程池的状态</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BA%94%E7%A7%8D%E7%B1%BB%E5%9E%8B%E7%9A%84%E7%BA%BF%E7%A8%8B%E6%B1%A0"><span class="nav-number">3.2.</span> <span class="nav-text">五种类型的线程池</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">EvenLjj</p>
+  <div class="site-description" itemprop="description">记录最近所学所思，让岁月留下汗水的痕迹</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">10</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">3</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">3</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">EvenLjj</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a> 强力驱动
+  </div>
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+</div>
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
