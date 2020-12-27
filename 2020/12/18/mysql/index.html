@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"always","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="概述数据库是存放数据的仓库。它的存储空间很大，可以存放百万条、千万条、上亿条数据。但是数据库并不是随意地将数据进行存放，是有一定的规则的，否则查询的效率会很低。这里主要介绍关系型数据库。关系型数据库，存储的格式可以直观地反映实体间的关系。关系型数据库和常见的表格比较相似，关系型数据库中表与表之间是有很多复杂的关联关系的。 常见的关系型数据库有Mysql，SqlServer等。在轻量或者小型的应用中">
+<meta property="og:type" content="article">
+<meta property="og:title" content="数据库">
+<meta property="og:url" content="http://yoursite.com/2020/12/18/mysql/index.html">
+<meta property="og:site_name" content="个人成长博客">
+<meta property="og:description" content="概述数据库是存放数据的仓库。它的存储空间很大，可以存放百万条、千万条、上亿条数据。但是数据库并不是随意地将数据进行存放，是有一定的规则的，否则查询的效率会很低。这里主要介绍关系型数据库。关系型数据库，存储的格式可以直观地反映实体间的关系。关系型数据库和常见的表格比较相似，关系型数据库中表与表之间是有很多复杂的关联关系的。 常见的关系型数据库有Mysql，SqlServer等。在轻量或者小型的应用中">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://yoursite.com/2020/12/18/mysql/doubletree.png">
+<meta property="og:image" content="http://yoursite.com/2020/12/18/mysql/B-Tree.png">
+<meta property="og:image" content="http://yoursite.com/2020/12/18/mysql/B+-Tree.jpg">
+<meta property="og:image" content="http://yoursite.com/2020/12/18/mysql/hash.png">
+<meta property="og:image" content="http://yoursite.com/2020/12/18/mysql/bitmap.png">
+<meta property="og:image" content="http://yoursite.com/2020/12/18/mysql/mixi.png">
+<meta property="og:image" content="http://yoursite.com/2020/12/18/mysql/innodb.png">
+<meta property="og:image" content="http://yoursite.com/2020/12/18/mysql/leftrule.png">
+<meta property="og:image" content="http://yoursite.com/2020/12/18/mysql/undolog.jpg">
+<meta property="og:image" content="http://yoursite.com/2020/12/18/mysql/gaplock.png">
+<meta property="og:image" content="http://yoursite.com/2020/12/18/mysql/gaplock2.png">
+<meta property="article:published_time" content="2020-12-18T14:36:58.000Z">
+<meta property="article:modified_time" content="2020-12-27T11:11:41.338Z">
+<meta property="article:author" content="EvenLjj">
+<meta property="article:tag" content="数据库">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://yoursite.com/2020/12/18/mysql/doubletree.png">
+
+<link rel="canonical" href="http://yoursite.com/2020/12/18/mysql/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>数据库 | 个人成长博客</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">个人成长博客</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">纸上得来终觉浅，绝知此事要躬行</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/12/18/mysql/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="EvenLjj">
+      <meta itemprop="description" content="记录最近所学所思，让岁月留下汗水的痕迹">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="个人成长博客">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          数据库
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2020-12-18 22:36:58" itemprop="dateCreated datePublished" datetime="2020-12-18T22:36:58+08:00">2020-12-18</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-12-27 19:11:41" itemprop="dateModified" datetime="2020-12-27T19:11:41+08:00">2020-12-27</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/" itemprop="url" rel="index"><span itemprop="name">数据库</span></a>
+                </span>
+            </span>
+
+          
+            <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv" style="display: none;">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span id="busuanzi_value_page_pv"></span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h1><p>数据库是存放数据的仓库。它的存储空间很大，可以存放百万条、千万条、上亿条数据。但是数据库并不是随意地将数据进行存放，是有一定的规则的，否则查询的效率会很低。这里主要介绍关系型数据库。关系型数据库，存储的格式可以直观地反映实体间的关系。关系型数据库和常见的表格比较相似，关系型数据库中表与表之间是有很多复杂的关联关系的。 常见的关系型数据库有Mysql，SqlServer等。在轻量或者小型的应用中，使用不同的关系型数据库对系统的性能影响不大，但是在构建大型应用时，则需要根据应用的业务需求和性能需求，选择合适的关系型数据库。数据库的涉及主要涉及分为存储系统和程序实例两部分，程序实例又分为存储管理、缓存实例、SQL解析、日志管理、权限划分、容灾机制、索引管理、锁管理等。</p>
+<h2 id="索引模块"><a href="#索引模块" class="headerlink" title="索引模块"></a>索引模块</h2><h3 id="为什么要使用索引"><a href="#为什么要使用索引" class="headerlink" title="为什么要使用索引"></a>为什么要使用索引</h3><p>全表扫描，当只有小部分数据，全表扫描可能比根据索引查找还快。数据量比较大的时候，因为存储的最小单位为块或者页，会把所有块或者页遍历查找，然后找到我们所需要的数据并返回，这时候全表扫描就显得不是很合适。索引和字典有异曲同工之处，将一些关键信息组织起来，比如偏旁部首，查询的时候依据这些信息，就能够快速找到想要的数据。所以使用索引能够快速查找数据。</p>
+<h3 id="什么样的信息能成为索引"><a href="#什么样的信息能成为索引" class="headerlink" title="什么样的信息能成为索引"></a>什么样的信息能成为索引</h3><p>将数据能够限定在一定查找范围之内的字段可以成为索引，主键、唯一键以及普通键等都可以成为索引。</p>
+<h3 id="索引的数据结构"><a href="#索引的数据结构" class="headerlink" title="索引的数据结构"></a>索引的数据结构</h3><h4 id="二叉树索引"><a href="#二叉树索引" class="headerlink" title="二叉树索引"></a>二叉树索引</h4><p>生成索引，建立二叉查找树进行二分查找：</p>
+<p><img src="/2020/12/18/mysql/doubletree.png"></p>
+<p>其中P*为索引，使用二叉树作为索引，因为是二分查找，所以查询的时间复杂度为O(log n)，但当二叉树变成线性二叉树的时候，查询的时间复杂度则降为O(n)。可以通过树的旋转解决查询效率退化的问题，但是因为每次进行深层的二分查询都会有IO，影响数据库的性能主要也是IO，所以减少不必要的IO才能进一步扩大性能。</p>
+<h3 id="B-树索引"><a href="#B-树索引" class="headerlink" title="B+ 树索引"></a>B+ 树索引</h3><p>B-tree，即B树，而<strong>不要读成B减树</strong>，它是一种多路搜索树（<strong>并不是二叉的</strong>），运用B-tree可以让每个索引块尽可能存储更多的信息（不想二叉树每个节点只能存储二个关键信息）：</p>
+<p>1.<strong>定义任意非叶子结点最多只有M个儿子；且M&gt;2；</strong></p>
+<p>2.<strong>根结点的儿子数为[2, M]；</strong></p>
+<p>3.**除根结点以外的非叶子结点的儿子数为[M/2, M]**；</p>
+<p>4.每个结点存放至少M/2-1（取上整）和至多M-1个关键字；（至少2个关键字）</p>
+<p>5.非叶子结点的关键字个数=指向儿子的指针个数-1；</p>
+<p>6.非叶子结点的关键字：K[1], K[2], …, K[M-1]；且K[i] &lt; K[i+1]；</p>
+<p>7.非叶子结点的指针：P[1], P[2], …, P[M]；其中P[1]指向关键字小于K[1]的子树，P[M]指向关键字大于K[M-1]的子树，其它P[i]指向关键字属于(K[i-1], K[i])的子树；</p>
+<p>8.<strong>所有叶子结点位于同一层；</strong></p>
+<p>如：（M=3）</p>
+<img src="/2020/12/18/mysql/B-Tree.png" style="zoom: 50%;">
+
+<h3 id="B-树索引-1"><a href="#B-树索引-1" class="headerlink" title="B+ 树索引"></a>B+ 树索引</h3><p>B+树是B树的变体，其定义基本与B树相同，一颗m阶的B+树和m阶的B树的差异在于：</p>
+<ol>
+<li>有n棵子树的结点中含有n个关键字； (而B树是n棵子树有n-1个关键字)</li>
+<li>所有的叶子结点中包含了全部关键字的信息，及指向含有这些关键字记录的指针，且叶子结点本身依关键字的大小自小而大的顺序链接。(而B树的叶子节点并没有包括全部需要查找的信息)</li>
+<li>所有的非终端结点可以看成是索引部分，结点中仅含有其子树根结点中最大（或最小）关键字。 (而B 树的非终节点也包含需要查找的有效信息)</li>
+</ol>
+<img src="/2020/12/18/mysql/B+-Tree.jpg">
+
+<p>B+-树更适合作为存储索引：</p>
+<ol>
+<li><p>B+-tree的磁盘读写代价更低</p>
+<p>B+-tree的内部结点并没有指向关键字具体信息的指针。因此其内部结点相对B 树更小。如果把所有同一内部结点的关键字存放在同一盘块中，那么盘块所能容纳的关键字数量也越多。一次性读入内存中的需要查找的关键字也就越多。相对来说IO读写次数也就降低了。</p>
+<p>举个例子，假设磁盘中的一个盘块容纳16bytes，而一个关键字2bytes，一个关键字具体信息指针2bytes。一棵9阶B-tree(一个结点最多8个关键字)的内部结点需要2个盘快。而B+ 树内部结点只需要1个盘快。当需要把内部结点读入内存中的时候，B 树就比B+ 树多一次盘块查找时间(在磁盘中就是盘片旋转的时间)。</p>
+</li>
+<li><p>B+-tree的查询效率更加稳定</p>
+<p>由于非终结点并不是最终指向文件内容的结点，而只是叶子结点中关键字的索引。所以任何关键字的查找必须走一条从根结点到叶子结点的路。所有关键字查询的路径长度相同，导致每一个数据的查询效率相当。</p>
+</li>
+<li><p>B+-tree更有利于对数据库的扫描</p>
+</li>
+</ol>
+<h3 id="Hash索引"><a href="#Hash索引" class="headerlink" title="Hash索引"></a>Hash索引</h3><p>Hash索引根据key的hash值来创建哈希表存储数据，当知道具体key时能够快速查找到该条记录。</p>
+<img src="/2020/12/18/mysql/hash.png" style="zoom:67%;">
+
+<p>Hash索引也有些缺点：</p>
+<ol>
+<li>仅仅能满足“=”、“IN”，不能使用范围查询</li>
+<li>无法被用来避免数据的排序操作</li>
+<li>不能利用部分索引键查询</li>
+<li>不能避免表扫描</li>
+<li>遇到大量Hash值相等的情况后性能不一定就会比B-Tree索引高</li>
+</ol>
+<h3 id="BitMap索引"><a href="#BitMap索引" class="headerlink" title="BitMap索引"></a>BitMap索引</h3><img src="/2020/12/18/mysql/bitmap.png" style="zoom:67%;">
+
+<p>位图索引只适合某个字段的值是固定的几个，位图索引的锁的粒度比较大。</p>
+<h3 id="密集索引和稀疏索引的区别"><a href="#密集索引和稀疏索引的区别" class="headerlink" title="密集索引和稀疏索引的区别"></a>密集索引和稀疏索引的区别</h3><p>主要区别：</p>
+<ol>
+<li>密集索引文件中的每个搜索码值都对应一个索引值</li>
+<li>稀疏索引文件只为索引码的某些值建立索引项</li>
+</ol>
+<img src="/2020/12/18/mysql/mixi.png" style="zoom: 67%;">
+
+<h4 id="InnoDB"><a href="#InnoDB" class="headerlink" title="InnoDB"></a>InnoDB</h4><ol>
+<li>若一个主键被定义，该主键则作为密集索引</li>
+<li>若没有主键被定义，该表的第一个唯一非空索引则作为密集索引</li>
+<li>若不满足以上条件，innodb内部会生成一个隐藏主键（密集索引）</li>
+<li>非主键索引存储相关键位和其对应的主键值，包含两次查找</li>
+</ol>
+<img src="/2020/12/18/mysql/innodb.png" style="zoom:67%;">
+
+<h3 id="联合索引"><a href="#联合索引" class="headerlink" title="联合索引"></a>联合索引</h3><p>最左匹配原则：</p>
+<ol>
+<li>最左前缀匹配原则，非常重要的原则，mysql会一直向右匹配直到遇到范围查询（&gt;、&lt;、between、like）就停止匹配，比如a=1 and  b=4 and c&gt;5 and d=6如果建立（a，b，c，d）顺序的索引，d是用不到索引的；如果建立的是（a，b，d，c）的索引则都可以用到，a，b，d的顺序可以任意调整</li>
+<li>=和in可以乱序，比如a=1 and b=2 and c=3建立（a,b,c） 索引可以任意顺序，mysql的查询优化器会帮助你优化成索引可以识别的形式</li>
+</ol>
+<p>最左匹配原则的成因：</p>
+<p><img src="/2020/12/18/mysql/leftrule.png" alt="leftrule"></p>
+<p>如图是根据（col3,col2）组成的联合索引，建立联合索引时会根据第一个索引进行排序，然后在此基础上再根据第二个索引进行排序，以此类推。那么第一个字段是绝对有序，直接使用第二个字段则无须。</p>
+<h3 id="索引是建立的越多越好呢"><a href="#索引是建立的越多越好呢" class="headerlink" title="索引是建立的越多越好呢"></a>索引是建立的越多越好呢</h3><ol>
+<li>数据量小的表不需要建立索引，建立会增加额外的索引开销</li>
+<li>数据变更需要维护索引，因此更多的索引意味更多的维护成本</li>
+<li>更多的索引意味着也需要更多的空间</li>
+</ol>
+<h2 id="锁模块"><a href="#锁模块" class="headerlink" title="锁模块"></a>锁模块</h2><h3 id="数据库锁的分类"><a href="#数据库锁的分类" class="headerlink" title="数据库锁的分类"></a>数据库锁的分类</h3><ol>
+<li>按锁的粒度划分，可分为表级锁、行级锁、页级锁</li>
+<li>按锁级别划分，可分为共享锁、排它锁</li>
+<li>按加锁方式划分，可分为自动锁、显示锁</li>
+<li>按操作划分，可分为DML锁、DDL锁</li>
+<li>按使用方式划分，可分为乐观锁、悲观锁</li>
+</ol>
+<h3 id="MyISAM与InnoDB关于锁方面的区别"><a href="#MyISAM与InnoDB关于锁方面的区别" class="headerlink" title="MyISAM与InnoDB关于锁方面的区别"></a>MyISAM与InnoDB关于锁方面的区别</h3><p>主要区别：</p>
+<ol>
+<li>MyISAM默认用的是表级锁，不支持行级锁；适用场景，频繁执行全表count语句、对数据增删改的频率不高，查询非常频繁、没有事务</li>
+<li>InnoDB默认用的是行级锁，也支持表级锁；数据增删改查都相当频繁、可靠性要求比较高，要求支持事务</li>
+</ol>
+<h3 id="数据库事务四大特性"><a href="#数据库事务四大特性" class="headerlink" title="数据库事务四大特性"></a>数据库事务四大特性</h3><p><strong>ACID</strong></p>
+<ol>
+<li>原子性（Atomic）：事务包含的操作要么全做，要么全不做</li>
+<li>一致性（Consistency）：事务应确保数据库的状态从一个一个一致性转变为另一个一致性</li>
+<li>隔离性（Isolation）：多个事务并发执行时，一个事务的执行，不应该影响另一个事务的执行</li>
+<li>持久性（Durability）：一个事务一旦提交，则应该永久保留在数据库中，故障前提交的事务，应该确保被执行</li>
+</ol>
+<h3 id="事务隔离级别以及各级别下的并发访问问题"><a href="#事务隔离级别以及各级别下的并发访问问题" class="headerlink" title="事务隔离级别以及各级别下的并发访问问题"></a>事务隔离级别以及各级别下的并发访问问题</h3><ol>
+<li><p>更新丢失：mysql所有事务隔离级别在数据库层面上均可避免</p>
+<table>
+<thead>
+<tr>
+<th>取款事务</th>
+<th>存款事务</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>开始事务</td>
+<td>开始事务</td>
+</tr>
+<tr>
+<td>查询账户余额为100元</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>查询转账余额为100元</td>
+</tr>
+<tr>
+<td></td>
+<td>存入20元，余额变成120元</td>
+</tr>
+<tr>
+<td></td>
+<td>提交事务</td>
+</tr>
+<tr>
+<td>取出10元，余额改为90元</td>
+<td></td>
+</tr>
+<tr>
+<td>回滚事务，余额恢复为100元</td>
+<td>更新丢失</td>
+</tr>
+</tbody></table>
+</li>
+<li><p>脏读：脏读是读到了别的事务回滚前的脏数据，READ-COMMITTED事务隔离级别以上可避免</p>
+<table>
+<thead>
+<tr>
+<th>取款事务</th>
+<th>存款事务</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>开始事务</td>
+<td>开始事务</td>
+</tr>
+<tr>
+<td>原来余额100，取出10元，变为90，未提交事务</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>查询余额为90</td>
+</tr>
+<tr>
+<td>回滚事务</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>存20元，提交事务。</td>
+</tr>
+<tr>
+<td></td>
+<td>余额变成110（脏读）</td>
+</tr>
+</tbody></table>
+</li>
+<li><p>不可重复读：是指在数据库访问中，一个事务范围内两个相同的查询却返回了不同数据。REPEATABLE-READ事务隔离级别以上可避免</p>
+<table>
+<thead>
+<tr>
+<th>取款事务</th>
+<th>查询</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>开始事务</td>
+<td>开始事务</td>
+</tr>
+<tr>
+<td></td>
+<td>查询余额100元</td>
+</tr>
+<tr>
+<td>原来余额100，取出10元，变为90，提交事务</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>查询余额90元（同一事务两次读取不一致）</td>
+</tr>
+</tbody></table>
+</li>
+<li><p>幻读：一个事务(同一个read view)在前后两次查询同一范围的时候，后一次查询看到了前一次查询没有看到的行。SERIALIZABLE事务隔离级别可避免</p>
+<table>
+<thead>
+<tr>
+<th>查询事务</th>
+<th>插入事务</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>开始事务</td>
+<td>开始事务</td>
+</tr>
+<tr>
+<td>查询所有数据，假设一共有三条</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>插入一条数据</td>
+</tr>
+<tr>
+<td>更新所有数据的某一字段，update时影响了四条数据（幻读）</td>
+<td></td>
+</tr>
+</tbody></table>
+</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>事务隔离级别</th>
+<th>更新丢失</th>
+<th>脏读</th>
+<th>不可重复读</th>
+<th>幻读</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>未提交读</td>
+<td>避免</td>
+<td>发生</td>
+<td>发生</td>
+<td>发生</td>
+</tr>
+<tr>
+<td>已提交读</td>
+<td>避免</td>
+<td>避免</td>
+<td>发生</td>
+<td>发生</td>
+</tr>
+<tr>
+<td>可重复读</td>
+<td>避免</td>
+<td>避免</td>
+<td>避免</td>
+<td>发生</td>
+</tr>
+<tr>
+<td>串行化</td>
+<td>避免</td>
+<td>避免</td>
+<td>避免</td>
+<td>避免</td>
+</tr>
+</tbody></table>
+<h3 id="InnoDB可重复读隔离级别下如何避免幻读"><a href="#InnoDB可重复读隔离级别下如何避免幻读" class="headerlink" title="InnoDB可重复读隔离级别下如何避免幻读"></a>InnoDB可重复读隔离级别下如何避免幻读</h3><p>首先先介绍下什么是当前读和快照读：</p>
+<ol>
+<li>当前读：加锁的增删改查语句，无论什么锁，因为读取的是当前最新版本，还要保证并发事务不能修改当前记录，对读取记录加锁。例如：select … lock in share mode、select … for update会加共享锁，update、delete、insert会加排它锁</li>
+<li>快照读：可能读取到的数据不是最新版本而是历史版本</li>
+</ol>
+<p>注意：已提交读（read committed）级别下。当前读与快照读读取的版本一样。可重复读（repeatable read） 级别下，当前读返回的是数据的最新版本，**快照读返回的可能数据未修改前的版本也可能是最新的数据版本。因为在RR级别下，事务调用快照读的时机很重要，创建快照的时机决定了读取的版本。</p>
+<h4 id="RC、RR级别下的InnoDB的快照读（非阻塞读）如何实现"><a href="#RC、RR级别下的InnoDB的快照读（非阻塞读）如何实现" class="headerlink" title="RC、RR级别下的InnoDB的快照读（非阻塞读）如何实现"></a>RC、RR级别下的InnoDB的快照读（非阻塞读）如何实现</h4><h5 id="数据行关键字段："><a href="#数据行关键字段：" class="headerlink" title="数据行关键字段："></a><strong>数据行关键字段</strong>：</h5><ol>
+<li>DB_TRX_ID：该字段标明最近一次对数据做修改事务的标识符</li>
+<li>DB_ROLL_PTR：回滚指针，写入回滚段的undo日志</li>
+<li>DB__ROW_ID ：行号，随着新行出现单调递增的id</li>
+</ol>
+<h5 id="undo日志"><a href="#undo日志" class="headerlink" title="undo日志"></a><strong>undo日志</strong></h5><p>主要分为insert undo日志（事务回滚涉及）和update undo日志（事务回滚和快照读都涉及）。对事务变更就会产生undo记录，存储的是老版数据，事务回滚需要。<br>undo日志工作方式，举例来说，如下图：</p>
+<img src="/2020/12/18/mysql/undolog.jpg" style="zoom: 50%;">
+
+<p>当事务1，对于DB_ROW_ID某一个字段进行修改时，首先用排它锁锁定改行数据，然后会copy一份修改前的数据到undo log，然后修改当前行的数据，更新事务id字段，使用回滚指定指向undo log中修改前的行，以此类推。</p>
+<h5 id="ReadView"><a href="#ReadView" class="headerlink" title="ReadView"></a>ReadView</h5><p>主要取出DB_TRX_ID和系统其它活跃的事务id相对比，大于或者等于事务id时，然后根据DB_ROLL_PTR指针从undo log中取出当前版本</p>
+<h4 id="MVCC："><a href="#MVCC：" class="headerlink" title="MVCC："></a><strong>MVCC：</strong></h4><p>MVCC（ Multi-Version Concurrency Control ，多版本并发控制）指的就是在使用READ COMMITTD、REPEATABLE READ这两种隔离级别的事务在执行普通的SEELCT操作时访问记录的版本链的过程。可以使不同事务的读-写、写-读操作并发执行，从而提升系统性能。 READ COMMITTD、 REPEATABLE READ这两个隔离级别的一个很大不同就是：生成ReadView的时机不同， READ COMMITTD在每一次进行普通SELECT操作前都会生成一个ReadView，而REPEATABLE READ只在第一次进行普通SELECT操作前生成一个ReadView，之后的查询操作都重复使用这个ReadView就好了。</p>
+<h4 id="InnoDB可重复读隔离级别下如何避免幻读："><a href="#InnoDB可重复读隔离级别下如何避免幻读：" class="headerlink" title="InnoDB可重复读隔离级别下如何避免幻读："></a>InnoDB可重复读隔离级别下如何避免幻读：</h4><ul>
+<li><strong>表象：快照读（非阻塞读）—伪MVCC</strong></li>
+<li><strong>内在：next-key锁，（行锁+gap锁）</strong></li>
+</ul>
+<p><strong>next-key锁</strong>，由行锁和gap锁组成。行锁就是对行记录加的锁。通过Next-key锁，InnoDB读取数据时，会增加锁，以保证事务内读取数据的一致性</p>
+<p><strong><em>Gap锁</em></strong></p>
+<p>Gap是索引树种插入新纪录的空隙，Gap锁定一个范围但不包括本身。</p>
+<ol>
+<li><p>目的是防止同一事务的两次当前读出现幻读的情况</p>
+</li>
+<li><p>Repeatable-read级别以上支持Gap锁</p>
+</li>
+<li><p>在RR级别下，对主键索引或者唯一索引会用Gap锁的情况：</p>
+<ul>
+<li>如果where条件全部命中，则不会用Gap锁，只会加行锁，Select * from . where id=1,2,3 这三条记录都能查得到，则称为全部命中</li>
+<li>如果where条件部分命中或者全不命中，则会加Gap锁</li>
+</ul>
+</li>
+<li><p>Gap锁会用在非唯一索引或者不走索引的当前读中</p>
+<p>(非唯一索引为啥需要gap锁，因为不是唯一，所以可能存在多条一样有不确定性)</p>
+<ul>
+<li><p>非唯一索引Gap锁，如下图，这里操作删除id为9的数时，(6,9]和(9,11]会上Gap锁</p>
+<img src="/2020/12/18/mysql/gaplock.png" style="zoom: 67%;">
+</li>
+<li><p>不走索引的Gap锁，如下图，会对所有记录都上锁，相当于锁表</p>
+<img src="/2020/12/18/mysql/gaplock2.png" style="zoom:67%;">
+
+
+
+</li>
+</ul>
+</li>
+</ol>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E6%95%B0%E6%8D%AE%E5%BA%93/" rel="tag"># 数据库</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/12/01/collection/" rel="prev" title="Java集合框架">
+      <i class="fa fa-chevron-left"></i> Java集合框架
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2020/12/21/network/" rel="next" title="网络基础">
+      网络基础 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%A6%82%E8%BF%B0"><span class="nav-number">1.</span> <span class="nav-text">概述</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%B4%A2%E5%BC%95%E6%A8%A1%E5%9D%97"><span class="nav-number">1.1.</span> <span class="nav-text">索引模块</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E8%A6%81%E4%BD%BF%E7%94%A8%E7%B4%A2%E5%BC%95"><span class="nav-number">1.1.1.</span> <span class="nav-text">为什么要使用索引</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BB%80%E4%B9%88%E6%A0%B7%E7%9A%84%E4%BF%A1%E6%81%AF%E8%83%BD%E6%88%90%E4%B8%BA%E7%B4%A2%E5%BC%95"><span class="nav-number">1.1.2.</span> <span class="nav-text">什么样的信息能成为索引</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%B4%A2%E5%BC%95%E7%9A%84%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84"><span class="nav-number">1.1.3.</span> <span class="nav-text">索引的数据结构</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%BA%8C%E5%8F%89%E6%A0%91%E7%B4%A2%E5%BC%95"><span class="nav-number">1.1.3.1.</span> <span class="nav-text">二叉树索引</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#B-%E6%A0%91%E7%B4%A2%E5%BC%95"><span class="nav-number">1.1.4.</span> <span class="nav-text">B+ 树索引</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#B-%E6%A0%91%E7%B4%A2%E5%BC%95-1"><span class="nav-number">1.1.5.</span> <span class="nav-text">B+ 树索引</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Hash%E7%B4%A2%E5%BC%95"><span class="nav-number">1.1.6.</span> <span class="nav-text">Hash索引</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#BitMap%E7%B4%A2%E5%BC%95"><span class="nav-number">1.1.7.</span> <span class="nav-text">BitMap索引</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AF%86%E9%9B%86%E7%B4%A2%E5%BC%95%E5%92%8C%E7%A8%80%E7%96%8F%E7%B4%A2%E5%BC%95%E7%9A%84%E5%8C%BA%E5%88%AB"><span class="nav-number">1.1.8.</span> <span class="nav-text">密集索引和稀疏索引的区别</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#InnoDB"><span class="nav-number">1.1.8.1.</span> <span class="nav-text">InnoDB</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%81%94%E5%90%88%E7%B4%A2%E5%BC%95"><span class="nav-number">1.1.9.</span> <span class="nav-text">联合索引</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%B4%A2%E5%BC%95%E6%98%AF%E5%BB%BA%E7%AB%8B%E7%9A%84%E8%B6%8A%E5%A4%9A%E8%B6%8A%E5%A5%BD%E5%91%A2"><span class="nav-number">1.1.10.</span> <span class="nav-text">索引是建立的越多越好呢</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%94%81%E6%A8%A1%E5%9D%97"><span class="nav-number">1.2.</span> <span class="nav-text">锁模块</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%95%B0%E6%8D%AE%E5%BA%93%E9%94%81%E7%9A%84%E5%88%86%E7%B1%BB"><span class="nav-number">1.2.1.</span> <span class="nav-text">数据库锁的分类</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#MyISAM%E4%B8%8EInnoDB%E5%85%B3%E4%BA%8E%E9%94%81%E6%96%B9%E9%9D%A2%E7%9A%84%E5%8C%BA%E5%88%AB"><span class="nav-number">1.2.2.</span> <span class="nav-text">MyISAM与InnoDB关于锁方面的区别</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%95%B0%E6%8D%AE%E5%BA%93%E4%BA%8B%E5%8A%A1%E5%9B%9B%E5%A4%A7%E7%89%B9%E6%80%A7"><span class="nav-number">1.2.3.</span> <span class="nav-text">数据库事务四大特性</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BA%8B%E5%8A%A1%E9%9A%94%E7%A6%BB%E7%BA%A7%E5%88%AB%E4%BB%A5%E5%8F%8A%E5%90%84%E7%BA%A7%E5%88%AB%E4%B8%8B%E7%9A%84%E5%B9%B6%E5%8F%91%E8%AE%BF%E9%97%AE%E9%97%AE%E9%A2%98"><span class="nav-number">1.2.4.</span> <span class="nav-text">事务隔离级别以及各级别下的并发访问问题</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#InnoDB%E5%8F%AF%E9%87%8D%E5%A4%8D%E8%AF%BB%E9%9A%94%E7%A6%BB%E7%BA%A7%E5%88%AB%E4%B8%8B%E5%A6%82%E4%BD%95%E9%81%BF%E5%85%8D%E5%B9%BB%E8%AF%BB"><span class="nav-number">1.2.5.</span> <span class="nav-text">InnoDB可重复读隔离级别下如何避免幻读</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#RC%E3%80%81RR%E7%BA%A7%E5%88%AB%E4%B8%8B%E7%9A%84InnoDB%E7%9A%84%E5%BF%AB%E7%85%A7%E8%AF%BB%EF%BC%88%E9%9D%9E%E9%98%BB%E5%A1%9E%E8%AF%BB%EF%BC%89%E5%A6%82%E4%BD%95%E5%AE%9E%E7%8E%B0"><span class="nav-number">1.2.5.1.</span> <span class="nav-text">RC、RR级别下的InnoDB的快照读（非阻塞读）如何实现</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E6%95%B0%E6%8D%AE%E8%A1%8C%E5%85%B3%E9%94%AE%E5%AD%97%E6%AE%B5%EF%BC%9A"><span class="nav-number">1.2.5.1.1.</span> <span class="nav-text">数据行关键字段：</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#undo%E6%97%A5%E5%BF%97"><span class="nav-number">1.2.5.1.2.</span> <span class="nav-text">undo日志</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#ReadView"><span class="nav-number">1.2.5.1.3.</span> <span class="nav-text">ReadView</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#MVCC%EF%BC%9A"><span class="nav-number">1.2.5.2.</span> <span class="nav-text">MVCC：</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#InnoDB%E5%8F%AF%E9%87%8D%E5%A4%8D%E8%AF%BB%E9%9A%94%E7%A6%BB%E7%BA%A7%E5%88%AB%E4%B8%8B%E5%A6%82%E4%BD%95%E9%81%BF%E5%85%8D%E5%B9%BB%E8%AF%BB%EF%BC%9A"><span class="nav-number">1.2.5.3.</span> <span class="nav-text">InnoDB可重复读隔离级别下如何避免幻读：</span></a></li></ol></li></ol></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">EvenLjj</p>
+  <div class="site-description" itemprop="description">记录最近所学所思，让岁月留下汗水的痕迹</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">15</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">5</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">5</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">EvenLjj</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a> 强力驱动
+  </div>
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+</div>
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
