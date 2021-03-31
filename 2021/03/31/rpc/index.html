@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"always","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="1234title: RPC基础date: 2020-08-22 16:27:51tags: 分布式系统categories: 分布式系统  RPC简介RPC 的全称是 Remote Procedure Call，即远程过程调用。RPC 是帮助我们屏蔽网络编程细节，实现调用远程方法就跟调用本地（同一个项目中的方法）一样的体验，我们不需要因为这个方法是远程调用就需要编写很多与业务无关的代码。RPC的">
+<meta property="og:type" content="article">
+<meta property="og:title" content="个人成长博客">
+<meta property="og:url" content="http://yoursite.com/2021/03/31/rpc/index.html">
+<meta property="og:site_name" content="个人成长博客">
+<meta property="og:description" content="1234title: RPC基础date: 2020-08-22 16:27:51tags: 分布式系统categories: 分布式系统  RPC简介RPC 的全称是 Remote Procedure Call，即远程过程调用。RPC 是帮助我们屏蔽网络编程细节，实现调用远程方法就跟调用本地（同一个项目中的方法）一样的体验，我们不需要因为这个方法是远程调用就需要编写很多与业务无关的代码。RPC的">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://yoursite.com/2021/03/31/rpc/rpcmodel.jpg">
+<meta property="og:image" content="http://yoursite.com/2021/03/31/rpc/jdk.jpg">
+<meta property="og:image" content="http://yoursite.com/2021/03/31/rpc/rpc/head1.jpg">
+<meta property="og:image" content="http://yoursite.com/2021/03/31/rpc/head2.jpg">
+<meta property="og:image" content="http://yoursite.com/2021/03/31/rpc/rpcproxy.jpg">
+<meta property="article:published_time" content="2021-03-31T15:27:50.066Z">
+<meta property="article:modified_time" content="2021-03-31T15:34:07.874Z">
+<meta property="article:author" content="EvenLjj">
+<meta property="article:tag" content="成长">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://yoursite.com/2021/03/31/rpc/rpcmodel.jpg">
+
+<link rel="canonical" href="http://yoursite.com/2021/03/31/rpc/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title> | 个人成长博客</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">个人成长博客</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">纸上得来终觉浅，绝知此事要躬行</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021/03/31/rpc/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="EvenLjj">
+      <meta itemprop="description" content="记录最近所学所思，让岁月留下汗水的痕迹">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="个人成长博客">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2021-03-31 23:27:50 / 修改时间：23:34:07" itemprop="dateCreated datePublished" datetime="2021-03-31T23:27:50+08:00">2021-03-31</time>
+            </span>
+
+          
+            <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv" style="display: none;">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span id="busuanzi_value_page_pv"></span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">title: RPC基础</span><br><span class="line">date: 2020-08-22 16:27:51</span><br><span class="line">tags: 分布式系统</span><br><span class="line">categories: 分布式系统</span><br></pre></td></tr></table></figure>
+
+<h1 id="RPC简介"><a href="#RPC简介" class="headerlink" title="RPC简介"></a>RPC简介</h1><p>RPC 的全称是 Remote Procedure Call，即远程过程调用。RPC 是帮助我们屏蔽网络编程细节，实现调用远程方法就跟调用本地（同一个项目中的方法）一样的体验，我们不需要因为这个方法是远程调用就需要编写很多与业务无关的代码。RPC的主要作用体现在这两个方面，第一点是屏蔽远程调用跟本地调用的区别，让我们感觉就是调用项目内的方法；第二点是隐藏底层网络通信的复杂性，让我们更专注于业务逻辑。</p>
+<h1 id="RPC基础"><a href="#RPC基础" class="headerlink" title="RPC基础"></a>RPC基础</h1><h2 id="通信流程"><a href="#通信流程" class="headerlink" title="通信流程"></a>通信流程</h2><p>RPC 是一个远程调用，那肯定就需要通过网络来传输数据，并且 RPC 常用于业务系统之间的数据交互，需要保证其可靠性，所以 RPC 一般默认采用 TCP 来传输。我们常用的 HTTP 协议也是建立在 TCP 之上的。</p>
+<h3 id="序列化与反序列化"><a href="#序列化与反序列化" class="headerlink" title="序列化与反序列化"></a>序列化与反序列化</h3><p>网络传输的数据必须是二进制数据，但调用方请求的出入参数都是对象。对象是肯定没法直接在网络中传输的，需要提前把它转成可传输的二进制，并且要求转换算法是可逆的，这个过程我们一般叫做“序列化”。</p>
+<p>序列化的数据，会根据所使用的协议的不同，封装到对应的数据报中。数据报一般会分为两个部分，分别是数据头和消息体。数据头一般用于身份识别，包括协议标识、数据大小、请求类型、序列化类型等信息；消息体主要是请求的业务参数信息和扩展属性等。</p>
+<p>根据协议格式，服务提供方就可以正确地从二进制数据中分割出不同的请求来，同时根据请求类型和序列化类型，把二进制的消息体逆向还原成请求对象。这个过程叫作“反序列化”。</p>
+<p>服务提供方再根据反序列化出来的请求对象找到对应的实现类，完成真正的方法调用，然后把执行结果序列化后，回写到对应的 TCP 通道里面。调用方获取到应答的数据包后，再反序列化成应答对象，这样调用方就完成了一次 RPC 调用。</p>
+<h3 id="动态代理"><a href="#动态代理" class="headerlink" title="动态代理"></a>动态代理</h3><p>如果你了解 Spring，一定对其 AOP 技术有所了解，其核心是采用动态代理的技术，通过字节码增强对方法进行拦截增强，以便于增加需要的额外处理逻辑。其实这个技术也可以应用到 RPC 场景，来实现屏蔽RPC细节，简化API，让业务方知需要关注业务接口的功能。</p>
+<p>由服务提供者给出业务接口声明，在调用方的程序里面，RPC 框架根据调用的服务接口提前生成动态代理实现类，并通过依赖注入等技术注入到声明了该接口的相关业务逻辑里面。该代理实现类会拦截所有的方法调用，在提供的方法处理逻辑里面完成一整套的远程调用，并把远程调用结果返回给调用方，这样调用方在调用远程方法的时候就获得了像调用本地接口一样的体验。</p>
+<p><img src="/2021/03/31/rpc/rpcmodel.jpg"></p>
+<h2 id="序列化框架"><a href="#序列化框架" class="headerlink" title="序列化框架"></a>序列化框架</h2><p>序列化方式有很多种，无论哪一种序列化框架，核心思想就是设计一种序列化协议，将对象的类型、属性类型、属性值一一按照固定的格式写到二进制字节流中来完成序列化，再按照固定的格式一一读出对象的类型、属性类型、属性值，通过这些信息重新创建出一个新的对象，来完成反序列化。</p>
+<h3 id="JDK-原生序列化"><a href="#JDK-原生序列化" class="headerlink" title="JDK 原生序列化"></a>JDK 原生序列化</h3><p>JDK能够序列化的对象需要实现Serializable接口，序列化可以通过 ObjectOutputStream 完成的，序列化流程如下图，而反序列化操作可以通过 ObjectInputStream 完成。</p>
+<img src="/2021/03/31/rpc/jdk.jpg" style="zoom:67%;">
+
+<p>序列化过程就是在读取对象数据的时候，不断加入一些特殊分隔符，这些特殊分隔符用于在反序列化过程中截断用。</p>
+<ul>
+<li>头部数据用来声明序列化协议、序列化版本，用于高低版本向后兼容</li>
+<li>对象数据主要包括类名、签名、属性名、属性类型及属性值，当然还有开头结尾等数据，除了属性值属于真正的对象值，其他都是为了反序列化用的元数据</li>
+<li>存在对象引用、继承的情况下，就是递归遍历“写对象”逻辑</li>
+</ul>
+<h3 id="JSON"><a href="#JSON" class="headerlink" title="JSON"></a>JSON</h3><p>JSON 可能是我们最熟悉的一种序列化格式了，JSON 是典型的 Key-Value 方式，没有数据类型，是一种文本型序列化框架。JSON在应用上还是很广泛的，无论是前台 Web 用 Ajax 调用、用磁盘存储文本类型的数据，还是基于 HTTP 协议的 RPC 框架通信，都会选择 JSON 格式。</p>
+<p>但用 JSON 进行序列化有这样两个问题，你需要格外注意：</p>
+<ol>
+<li>JSON 进行序列化的额外空间开销比较大，对于大数据量服务这意味着需要巨大的内存和磁盘开销；</li>
+<li>JSON 没有类型，但像 Java 这种强类型语言，需要通过反射统一解决，所以性能不会太好。</li>
+</ol>
+<p>所以如果 RPC 框架选用 JSON 序列化，服务提供者与服务调用者之间传输的数据量要相对较小，否则将严重影响性能。</p>
+<h3 id="Hessian"><a href="#Hessian" class="headerlink" title="Hessian"></a>Hessian</h3><p>Hessian 是动态类型、二进制、紧凑的，并且可跨语言移植的一种序列化框架。Hessian 协议要比 JDK、JSON 更加紧凑，性能上要比 JDK、JSON 序列化高效很多，而且生成的字节数也更小。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">Student student = <span class="keyword">new</span> Student();</span><br><span class="line">student.setNo(<span class="number">101</span>);</span><br><span class="line">student.setName(<span class="string">&quot;HESSIAN&quot;</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">//把student对象转化为byte数组</span></span><br><span class="line">ByteArrayOutputStream bos = <span class="keyword">new</span> ByteArrayOutputStream();</span><br><span class="line">Hessian2Output output = <span class="keyword">new</span> Hessian2Output(bos);</span><br><span class="line">output.writeObject(student);</span><br><span class="line">output.flushBuffer();</span><br><span class="line"><span class="keyword">byte</span>[] data = bos.toByteArray();</span><br><span class="line">bos.close();</span><br><span class="line"></span><br><span class="line"><span class="comment">//把刚才序列化出来的byte数组转化为student对象</span></span><br><span class="line">ByteArrayInputStream bis = <span class="keyword">new</span> ByteArrayInputStream(data);</span><br><span class="line">Hessian2Input input = <span class="keyword">new</span> Hessian2Input(bis);</span><br><span class="line">Student deStudent = (Student) input.readObject();</span><br><span class="line">input.close();</span><br><span class="line"></span><br><span class="line">System.out.println(deStudent);</span><br></pre></td></tr></table></figure>
+
+<p>相对于 JDK、JSON，由于 Hessian 更加高效，生成的字节数更小，有非常好的兼容性和稳定性，所以 Hessian 更加适合作为 RPC 框架远程通信的序列化协议。</p>
+<p>但 Hessian 本身也有问题，官方版本对 Java 里面一些常见对象的类型不支持，比如：</p>
+<ul>
+<li>Linked 系列，LinkedHashMap、LinkedHashSet 等，但是可以通过扩展 CollectionDeserializer 类修复；</li>
+<li>Locale 类，可以通过扩展 ContextSerializerFactory 类修复；</li>
+<li>Byte/Short 反序列化的时候变成 Integer。</li>
+</ul>
+<p>以上这些情况，你在实践时需要格外注意。</p>
+<h3 id="Protobuf"><a href="#Protobuf" class="headerlink" title="Protobuf"></a>Protobuf</h3><p>Protobuf  是 Google 公司内部的混合语言数据标准，是一种轻便、高效的结构化数据存储格式，可以用于结构化数据序列化，支持 Java、Python、C++、Go 等语言。Protobuf 使用的时候需要定义 IDL（Interface description language），然后使用不同语言的 IDL 编译器，生成序列化工具类，它的优点是：</p>
+<ul>
+<li>序列化后体积相比 JSON、Hessian 小很多；</li>
+<li>IDL 能清晰地描述语义，所以足以帮助并保证应用程序之间的类型不会丢失，无需类似 XML 解析器；</li>
+<li>序列化反序列化速度很快，不需要通过反射获取类型；</li>
+<li>消息格式升级和兼容性不错，可以做到向后兼容。</li>
+</ul>
+<p>使用代码示例如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * // IDl 文件格式</span></span><br><span class="line"><span class="comment"> * synax = &quot;proto3&quot;;</span></span><br><span class="line"><span class="comment"> * option java_package = &quot;com.test&quot;;</span></span><br><span class="line"><span class="comment"> * option java_outer_classname = &quot;StudentProtobuf&quot;;</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * message StudentMsg &#123;</span></span><br><span class="line"><span class="comment"> * //序号</span></span><br><span class="line"><span class="comment"> * int32 no = 1;</span></span><br><span class="line"><span class="comment"> * //姓名</span></span><br><span class="line"><span class="comment"> * string name = 2;</span></span><br><span class="line"><span class="comment"> * &#125;</span></span><br><span class="line"><span class="comment"> * </span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"> </span><br><span class="line">StudentProtobuf.StudentMsg.Builder builder = StudentProtobuf.StudentMsg.newBuilder();</span><br><span class="line">builder.setNo(<span class="number">103</span>);</span><br><span class="line">builder.setName(<span class="string">&quot;protobuf&quot;</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">//把student对象转化为byte数组</span></span><br><span class="line">StudentProtobuf.StudentMsg msg = builder.build();</span><br><span class="line"><span class="keyword">byte</span>[] data = msg.toByteArray();</span><br><span class="line"></span><br><span class="line"><span class="comment">//把刚才序列化出来的byte数组转化为student对象</span></span><br><span class="line">StudentProtobuf.StudentMsg deStudent = StudentProtobuf.StudentMsg.parseFrom(data);</span><br><span class="line"></span><br><span class="line">System.out.println(deStudent);</span><br></pre></td></tr></table></figure>
+
+<p>Protobuf  非常高效，但是对于具有反射和动态能力的语言来说，这样用起来很费劲，这一点就不如 Hessian，比如用 Java 的话，这个预编译过程不是必须的，可以考虑使用 Protostuff。</p>
+<p>Protostuff 不需要依赖 IDL 文件，可以直接对 Java 领域对象进行反 / 序列化操作，在效率上跟 Protobuf 差不多，生成的二进制格式和 Protobuf 是完全相同的，可以说是一个 Java 版本的 Protobuf 序列化框架。但在使用过程中，也发现有些问题：</p>
+<ul>
+<li>不支持null；</li>
+<li>ProtoStuff 不支持单纯的 Map、List 集合对象，需要包在对象里面。</li>
+</ul>
+<h3 id="如何选择一个序列化框架"><a href="#如何选择一个序列化框架" class="headerlink" title="如何选择一个序列化框架"></a>如何选择一个序列化框架</h3><p>上面介绍了几种最常见的序列化协议，其实远不止这几种，还有 Message pack、kryo 等。那么面对这么多的序列化协议，在 RPC 框架中我们该如何选择呢？需要考虑以下几点。</p>
+<h4 id="性能和效率"><a href="#性能和效率" class="headerlink" title="性能和效率"></a>性能和效率</h4><p>性能和效率，这的确是一个非常值得参考的因素。序列化与反序列化过程是 RPC 调用的一个必须过程，那么序列化与反序列化的性能和效率势必将直接关系到 RPC 框架整体的性能和效率。</p>
+<h4 id="空间开销"><a href="#空间开销" class="headerlink" title="空间开销"></a>空间开销</h4><p>空间开销，也就是序列化之后的二进制数据的体积大小。序列化后的字节数据体积越小，网络传输的数据量就越小，传输数据的速度也就越快，由于 RPC 是远程调用，那么网络传输的速度将直接关系到请求响应的耗时。</p>
+<h4 id="通用性与兼容性"><a href="#通用性与兼容性" class="headerlink" title="通用性与兼容性"></a>通用性与兼容性</h4><p>在序列化的选择上，与序列化协议的效率、性能、序列化协议后的体积相比，其通用性和兼容性的优先级会更高，因为他是会直接关系到服务调用的稳定性和可用率的，对于服务的性能来说，服务的可靠性显然更加重要。需要更加看重这种序列化协议在版本升级后的兼容性是否很好，是否支持更多的对象类型，是否是跨平台、跨语言的，是否有很多人已经用过并且踩过了很多的坑，其次才会去考虑性能、效率和空间开销。</p>
+<h4 id="安全性"><a href="#安全性" class="headerlink" title="安全性"></a>安全性</h4><p>还有一点需要特别强调。除了序列化协议的通用性和兼容性，序列化协议的安全性也是非常重要的一个参考因素，甚至应该放在第一位去考虑。以 JDK 原生序列化为例，它就存在漏洞。如果序列化存在安全漏洞，那么线上的服务就很可能被入侵。</p>
+<p>以上重要的参考因素，优先级从高到低依次是安全性、通用性和兼容性，之后我们会再考虑序列化框架的性能、效率和空间开销。</p>
+<p>综合这几个参考因素，再来总结一下前面介绍几个序列化协议。推荐首选的还是 Hessian 与 Protobuf，因为他们在性能、时间开销、空间开销、通用性、兼容性和安全性上，都满足了我们的要求。其中 Hessian 在使用上更加方便，在对象的兼容性上更好；Protobuf 则更加高效，通用性上更有优势。</p>
+<h3 id="注意事项"><a href="#注意事项" class="headerlink" title="注意事项"></a>注意事项</h3><p>在使用Rpc框架时，也有很多序列化问题，大多都是因为使用姿势不对导致的，这里列出一些注意事项。</p>
+<p><strong><em>对象构造得过于复杂</em></strong>：属性很多，并且存在多层的嵌套，比如 A 对象关联 B 对象，B 对象又聚合 C 对象，C 对象又关联聚合很多其他对象，对象依赖关系过于复杂。序列化框架在序列化与反序列化对象时，对象越复杂就越浪费性能，消耗 CPU，这会严重影响 RPC 框架整体的性能；另外，对象越复杂，在序列化与反序列化的过程中，出现问题的概率就越高。</p>
+<p><strong><em>对象过于庞大</em></strong>：经常遇到业务过来咨询，为啥RPC请求经常超时，排查后发现他们的入参对象非常得大，比如为一个大 List 或者大 Map，序列化之后字节长度达到了上兆字节。这种情况同样会严重地浪费了性能、CPU，并且序列化一个如此大的对象是很耗费时间的，这肯定会直接影响到请求的耗时。</p>
+<p><strong><em>使用序列化框架不支持的类作为入参类</em></strong>：比如 Hessian 框架，他天然是不支持 LinkHashMap、LinkedHashSet 等，而且大多数情况下最好不要使用第三方集合类，如 Guava 中的集合类，很多开源的序列化框架都是优先支持编程语言原生的对象。因此如果入参是集合类，应尽量选用原生的、最为常用的集合类，如 HashMap、ArrayList。</p>
+<p><strong><em>对象有复杂的继承关系</em></strong>：大多数序列化框架在序列化对象时都会将对象的属性一一进行序列化，当有继承关系时，会不停地寻找父类，遍历属性。就像问题1一样，对象关系越复杂，就越浪费性能，同时又很容易出现序列化上的问题。</p>
+<p>在 RPC 框架的使用过程中，我们要尽量构建简单的对象作为入参和返回值对象，避免上述问题。总而言之：</p>
+<ol>
+<li>对象要尽量简单，没有太多的依赖关系，属性不要太多，尽量高内聚；</li>
+<li>入参对象与返回值对象体积不要太大，更不要传太大的集合；</li>
+<li>尽量使用简单的、常用的、开发语言原生的对象，尤其是集合类；</li>
+<li>对象不要有复杂的继承关系，最好不要有父子类的情况。</li>
+</ol>
+<h2 id="如何设计一个协议"><a href="#如何设计一个协议" class="headerlink" title="如何设计一个协议"></a>如何设计一个协议</h2><p>如上面所说，协议规范了数据报的结构，从而能够进行有条理的解析数据，保证二进制数据经过网络传输后，还能被正确地还原语义。我们再来看看在 RPC 里面是怎么设计协议的。</p>
+<h3 id="HTTP协议局限"><a href="#HTTP协议局限" class="headerlink" title="HTTP协议局限"></a>HTTP协议局限</h3><p>HTTP 协议跟 RPC 都属于应用层协议，那有了现成的 HTTP 协议，为啥不直接用，还要为 RPC 设计私有协议呢？这还要从 RPC 的作用说起，相对于 HTTP 的用处，RPC 更多的是负责应用间的通信，所以性能要求相对更高。但 HTTP 协议的数据包大小相对请求数据本身要大很多，又需要加入很多无用的内容，比如换行符号、回车符等；还有一个更重要的原因是，HTTP 协议属于无状态协议，客户端无法对请求和响应进行关联，每次请求都需要重新建立连接，响应完成后再关闭连接。因此，对于要求高性能的 RPC 来说，HTTP 协议基本很难满足需求，所以 RPC 会选择设计更紧凑的私有协议。</p>
+<h3 id="私有协议可拓展设计"><a href="#私有协议可拓展设计" class="headerlink" title="私有协议可拓展设计"></a>私有协议可拓展设计</h3><p>首先整个协议应该拆分成两部分：协议头和协议体。在协议头里面，我们除了会放协议长度、序列化方式，还会放一些像协议标示、消息 ID、消息类型这样的参数，而协议体一般只放请求接口方法、请求的业务参数值和一些扩展属性。这样一个完整的 RPC 协议大概就出来了，协议头是由一堆固定的长度参数组成，而协议体是根据请求接口和参数构造的，长度属于可变的，具体协议如下图：</p>
+<img src="/2021/03/31/rpc/rpc/head1.jpg" style="zoom:50%;">
+
+<p>刚才讲的协议属于定长协议头，那也就是说往后就不能再往协议头里加新参数了，如果加参数就会导致线上兼容问题。举个具体例子，假设你设计了一个 88Bit 的协议头，其中协议长度占用 32bit，然后你为了加入新功能，在协议头里面加了 2bit，并且放到协议头的最后。升级后的应用，会用新的协议发出请求，然而没有升级的应用收到的请求后，还是按照 88bit 读取协议头，新加的 2 个 bit 会当作协议体前 2 个 bit 数据读出来，但原本的协议体最后 2 个 bit 会被丢弃了，这样就会导致协议体的数据是错的。</p>
+<p>协议体里面是可以加新的参数，但这里有一个关键点，就是协议体里面的内容都是经过序列化出来的，也就是说你要获取到你参数的值，就必须把整个协议体里面的数据经过反序列化出来。但在某些场景下，这样做的代价有点高啊！</p>
+<p>所以为了保证能平滑地升级改造前后的协议，我们有必要设计一种支持可扩展的协议。其关键在于让协议头支持可扩展，扩展后协议头的长度就不能定长了。那要实现读取不定长的协议头里面的内容，在这之前肯定需要一个固定的地方读取长度，所以我们需要一个固定的写入协议头的长度。整体协议就变成了三部分内容：固定部分、协议头内容、协议体内容，前两部分我们还是可以统称为“协议头”，具体协议如下：</p>
+<img src="/2021/03/31/rpc/head2.jpg" style="zoom:20%;">
+
+<h2 id="RPC框架网络通信"><a href="#RPC框架网络通信" class="headerlink" title="RPC框架网络通信"></a>RPC框架网络通信</h2><p>IO 多路复用更适合高并发的场景，可以用较少的进程（线程）处理较多的 socket 的 IO 请求，但使用难度比较高。当然高级的编程语言支持得还是比较好的，比如 Java 语言有很多的开源框架对 Java 原生 API 做了封装，如 Netty 框架，使用非常简便；而 GO 语言，语言本身对 IO 多路复用的封装就已经很简洁了。</p>
+<p>而阻塞 IO 与 IO 多路复用相比，阻塞 IO 每处理一个 socket 的 IO 请求都会阻塞进程（线程），但使用难度较低。在并发量较低、业务逻辑只需要同步进行 IO 操作的场景下，阻塞 IO 已经满足了需求，并且不需要发起 select 调用，开销上还要比 IO 多路复用低。</p>
+<p>RPC 调用在大多数的情况下，是一个高并发调用的场景，考虑到系统内核的支持、编程语言的支持以及 IO 模型本身的特点，在 RPC 框架的实现中，在网络通信的处理上，我们会选择 IO 多路复用的方式。开发语言的网络通信框架的选型上，最优的选择是基于 Reactor 模式实现的框架，如 Java 语言，首选的框架便是 Netty 框架（Java 还有很多其他 NIO 框架，但目前 Netty 应用得最为广泛），并且在 Linux 环境下，也要开启 epoll 来提升系统性能（Windows 环境下是无法开启 epoll 的，因为系统内核不支持）。</p>
+<h2 id="动态代理-1"><a href="#动态代理-1" class="headerlink" title="动态代理"></a>动态代理</h2><p>在项目中，当我们要使用 RPC 的时候，我们一般的做法是先找服务提供方要接口，通过 Maven 或者其他的工具把接口依赖到我们项目中。我们在编写业务逻辑的时候，如果要调用提供方的接口，我们就只需要通过依赖注入的方式把接口注入到项目中就行了，然后在代码里面直接调用接口的方法 。我们都知道，接口里并不会包含真实的业务逻辑，业务逻辑都在服务提供方应用里，但我们通过调用接口方法，确实拿到了想要的结果，是不是感觉有点神奇呢？想一下，在 RPC 里面，我们是怎么完成这个魔术的。</p>
+<p>这里面用到的核心技术就是前面说的动态代理。RPC 会自动给接口生成一个代理类，当我们在项目中注入接口的时候，运行过程中实际绑定的是这个接口生成的代理类。这样在接口方法被调用的时候，它实际上是被生成代理类拦截到了，这样我们就可以在生成的代理类里面，加入远程调用逻辑。通过这种“偷梁换柱”的手法，就可以帮用户屏蔽远程调用的细节，实现像调用本地一样地调用远程的体验，整体流程如下图所示：</p>
+<img src="/2021/03/31/rpc/rpcproxy.jpg" style="zoom:24%;">
+
+<h3 id="实现方法"><a href="#实现方法" class="headerlink" title="实现方法"></a>实现方法</h3><p>其实在 Java 领域，除了 JDK 默认的 nvocationHandler 能完成代理功能，我们还有很多其他的第三方框架也可以，比如像 Javassist、Byte Buddy 这样的框架。单纯从代理功能上来看，JDK 默认的代理功能是有一定的局限性的，它要求被代理的类只能是接口。原因是因为生成的代理类会继承 Proxy 类，但 Java 是不支持多重继承的。</p>
+<p>这个限制在 RPC 应用场景里面还是挺要紧的，因为对于服务调用方来说，在使用 RPC 的时候本来就是面向接口来编程的，这个我们刚才在前面已经讨论过了。使用 JDK 默认的代理功能，最大的问题就是性能问题。它生成后的代理类是使用反射来完成方法调用的，而这种方式相对直接用编码调用来说，性能会降低，但好在 JDK8 及以上版本对反射调用的性能有很大的提升，所以还是可以期待一下的。</p>
+<p>相对 JDK 自带的代理功能，Javassist 的定位是能够操纵底层字节码，所以使用起来并不简单，要生成动态代理类恐怕是有点复杂了。但好的方面是，通过 Javassist 生成字节码，不需要通过反射完成方法调用，所以性能肯定是更胜一筹的。在使用中，我们要注意一个问题，通过 Javassist 生成一个代理类后，此 CtClass 对象会被冻结起来，不允许再修改；否则，再次生成时会报错。</p>
+<p>Byte Buddy 则属于后起之秀，在很多优秀的项目中，像 Spring、Jackson 都用到了 Byte Buddy 来完成底层代理。相比 Javassist，Byte Buddy 提供了更容易操作的 API，编写的代码可读性更高。更重要的是，生成的代理类执行速度比 Javassist 更快。</p>
+<p>虽然以上这三种框架使用的方式相差很大，但核心原理却是差不多的，区别就只是通过什么方式生成的代理类以及在生成的代理类里面是怎么完成的方法调用。同时呢，也正是因为这些细小的差异，才导致了不同的代理框架在性能方面的表现不同。因此，我们在设计 RPC 框架的时候，还是需要进行一些比较的，具体你可以综合它们的优劣以及你的场景需求进行选择。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2021/01/04/io/" rel="prev" title="Java IO">
+      <i class="fa fa-chevron-left"></i> Java IO
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#RPC%E7%AE%80%E4%BB%8B"><span class="nav-number">1.</span> <span class="nav-text">RPC简介</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#RPC%E5%9F%BA%E7%A1%80"><span class="nav-number">2.</span> <span class="nav-text">RPC基础</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%80%9A%E4%BF%A1%E6%B5%81%E7%A8%8B"><span class="nav-number">2.1.</span> <span class="nav-text">通信流程</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%BA%8F%E5%88%97%E5%8C%96%E4%B8%8E%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96"><span class="nav-number">2.1.1.</span> <span class="nav-text">序列化与反序列化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8A%A8%E6%80%81%E4%BB%A3%E7%90%86"><span class="nav-number">2.1.2.</span> <span class="nav-text">动态代理</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BA%8F%E5%88%97%E5%8C%96%E6%A1%86%E6%9E%B6"><span class="nav-number">2.2.</span> <span class="nav-text">序列化框架</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#JDK-%E5%8E%9F%E7%94%9F%E5%BA%8F%E5%88%97%E5%8C%96"><span class="nav-number">2.2.1.</span> <span class="nav-text">JDK 原生序列化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#JSON"><span class="nav-number">2.2.2.</span> <span class="nav-text">JSON</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Hessian"><span class="nav-number">2.2.3.</span> <span class="nav-text">Hessian</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Protobuf"><span class="nav-number">2.2.4.</span> <span class="nav-text">Protobuf</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%A6%82%E4%BD%95%E9%80%89%E6%8B%A9%E4%B8%80%E4%B8%AA%E5%BA%8F%E5%88%97%E5%8C%96%E6%A1%86%E6%9E%B6"><span class="nav-number">2.2.5.</span> <span class="nav-text">如何选择一个序列化框架</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%80%A7%E8%83%BD%E5%92%8C%E6%95%88%E7%8E%87"><span class="nav-number">2.2.5.1.</span> <span class="nav-text">性能和效率</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%A9%BA%E9%97%B4%E5%BC%80%E9%94%80"><span class="nav-number">2.2.5.2.</span> <span class="nav-text">空间开销</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E9%80%9A%E7%94%A8%E6%80%A7%E4%B8%8E%E5%85%BC%E5%AE%B9%E6%80%A7"><span class="nav-number">2.2.5.3.</span> <span class="nav-text">通用性与兼容性</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%AE%89%E5%85%A8%E6%80%A7"><span class="nav-number">2.2.5.4.</span> <span class="nav-text">安全性</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9"><span class="nav-number">2.2.6.</span> <span class="nav-text">注意事项</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%A6%82%E4%BD%95%E8%AE%BE%E8%AE%A1%E4%B8%80%E4%B8%AA%E5%8D%8F%E8%AE%AE"><span class="nav-number">2.3.</span> <span class="nav-text">如何设计一个协议</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#HTTP%E5%8D%8F%E8%AE%AE%E5%B1%80%E9%99%90"><span class="nav-number">2.3.1.</span> <span class="nav-text">HTTP协议局限</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%A7%81%E6%9C%89%E5%8D%8F%E8%AE%AE%E5%8F%AF%E6%8B%93%E5%B1%95%E8%AE%BE%E8%AE%A1"><span class="nav-number">2.3.2.</span> <span class="nav-text">私有协议可拓展设计</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#RPC%E6%A1%86%E6%9E%B6%E7%BD%91%E7%BB%9C%E9%80%9A%E4%BF%A1"><span class="nav-number">2.4.</span> <span class="nav-text">RPC框架网络通信</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8A%A8%E6%80%81%E4%BB%A3%E7%90%86-1"><span class="nav-number">2.5.</span> <span class="nav-text">动态代理</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AE%9E%E7%8E%B0%E6%96%B9%E6%B3%95"><span class="nav-number">2.5.1.</span> <span class="nav-text">实现方法</span></a></li></ol></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">EvenLjj</p>
+  <div class="site-description" itemprop="description">记录最近所学所思，让岁月留下汗水的痕迹</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">17</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">5</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">5</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">EvenLjj</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a> 强力驱动
+  </div>
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+</div>
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
