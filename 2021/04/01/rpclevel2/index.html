@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"always","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="RPC进阶简介RPC入门中已经详细介绍了RPC中的各个功能组件，用一句话概括RPC，其实 RPC 就是把拦截到的方法参数，转成可以在网络中传输的二进制，并保证在服务提供方能正确地还原出语义，最终实现像调用本地一样地调用远程的目的。知道了各个功能组件只是迈出了第一步，接下来你必须要清楚各个组件之间是怎么完成数据交互的，这就需要一起搞清楚 RPC 的架构设计。 架构设计">
+<meta property="og:type" content="article">
+<meta property="og:title" content="RPC进阶">
+<meta property="og:url" content="http://yoursite.com/2021/04/01/rpclevel2/index.html">
+<meta property="og:site_name" content="个人成长博客">
+<meta property="og:description" content="RPC进阶简介RPC入门中已经详细介绍了RPC中的各个功能组件，用一句话概括RPC，其实 RPC 就是把拦截到的方法参数，转成可以在网络中传输的二进制，并保证在服务提供方能正确地还原出语义，最终实现像调用本地一样地调用远程的目的。知道了各个功能组件只是迈出了第一步，接下来你必须要清楚各个组件之间是怎么完成数据交互的，这就需要一起搞清楚 RPC 的架构设计。 架构设计">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://yoursite.com/2021/04/01/rpclevel2/design1.jpg">
+<meta property="og:image" content="http://yoursite.com/2021/04/01/rpclevel2/design2.jpg">
+<meta property="og:image" content="http://yoursite.com/2021/04/01/rpclevel2/register.jpg">
+<meta property="og:image" content="http://yoursite.com/2021/04/01/rpclevel2/zookeeper.jpg">
+<meta property="og:image" content="http://yoursite.com/2021/04/01/rpclevel2/health.jpg">
+<meta property="og:image" content="http://yoursite.com/2021/04/01/rpclevel2/healthstate.jpg">
+<meta property="og:image" content="http://yoursite.com/2021/04/01/rpclevel2/rpcrouter.jpg">
+<meta property="og:image" content="http://yoursite.com/2021/04/01/rpclevel2/iprouter.jpg">
+<meta property="og:image" content="http://yoursite.com/2021/04/01/rpclevel2/argrouter.jpg">
+<meta property="og:image" content="http://yoursite.com/2021/04/01/rpclevel2/anli1.jpg">
+<meta property="og:image" content="http://yoursite.com/2021/04/01/rpclevel2/fuzai.jpg">
+<meta property="og:image" content="http://yoursite.com/2021/04/01/rpclevel2/rpcfuzai.jpg">
+<meta property="og:image" content="http://yoursite.com/2021/04/01/rpclevel2/rpcrouter2.jpg">
+<meta property="og:image" content="http://yoursite.com/2021/04/01/rpclevel2/errortry.jpg">
+<meta property="og:image" content="http://yoursite.com/2021/04/01/rpclevel2/errortry2.jpg">
+<meta property="og:image" content="http://yoursite.com/2021/04/01/rpclevel2/shutdown.jpg">
+<meta property="og:image" content="http://yoursite.com/2021/04/01/rpclevel2/noticeshuntdown.jpg">
+<meta property="og:image" content="http://yoursite.com/2021/04/01/rpclevel2/downprocess.jpg">
+<meta property="og:image" content="http://yoursite.com/2021/04/01/rpclevel2/start.jpg">
+<meta property="og:image" content="http://yoursite.com/2021/04/01/rpclevel2/diaoyong.jpg">
+<meta property="og:image" content="http://yoursite.com/2021/04/01/rpclevel2/rongduan.jpg">
+<meta property="og:image" content="http://yoursite.com/2021/04/01/rpclevel2/groupm.jpg">
+<meta property="article:published_time" content="2021-04-01T06:42:32.000Z">
+<meta property="article:modified_time" content="2021-04-03T15:25:27.171Z">
+<meta property="article:author" content="EvenLjj">
+<meta property="article:tag" content="分布式系统">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://yoursite.com/2021/04/01/rpclevel2/design1.jpg">
+
+<link rel="canonical" href="http://yoursite.com/2021/04/01/rpclevel2/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>RPC进阶 | 个人成长博客</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">个人成长博客</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">纸上得来终觉浅，绝知此事要躬行</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021/04/01/rpclevel2/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="EvenLjj">
+      <meta itemprop="description" content="记录最近所学所思，让岁月留下汗水的痕迹">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="个人成长博客">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          RPC进阶
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2021-04-01 14:42:32" itemprop="dateCreated datePublished" datetime="2021-04-01T14:42:32+08:00">2021-04-01</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2021-04-03 23:25:27" itemprop="dateModified" datetime="2021-04-03T23:25:27+08:00">2021-04-03</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%88%86%E5%B8%83%E5%BC%8F%E7%B3%BB%E7%BB%9F/" itemprop="url" rel="index"><span itemprop="name">分布式系统</span></a>
+                </span>
+            </span>
+
+          
+            <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv" style="display: none;">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span id="busuanzi_value_page_pv"></span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="RPC进阶简介"><a href="#RPC进阶简介" class="headerlink" title="RPC进阶简介"></a>RPC进阶简介</h1><p>RPC入门中已经详细介绍了RPC中的各个功能组件，用一句话概括RPC，其实 RPC 就是把拦截到的方法参数，转成可以在网络中传输的二进制，并保证在服务提供方能正确地还原出语义，最终实现像调用本地一样地调用远程的目的。知道了各个功能组件只是迈出了第一步，接下来你必须要清楚各个组件之间是怎么完成数据交互的，这就需要一起搞清楚 RPC 的架构设计。</p>
+<h1 id="架构设计"><a href="#架构设计" class="headerlink" title="架构设计"></a>架构设计</h1><h2 id="基础架构"><a href="#基础架构" class="headerlink" title="基础架构"></a>基础架构</h2><h3 id="传输模块"><a href="#传输模块" class="headerlink" title="传输模块"></a>传输模块</h3><p>RPC 本质上就是一个远程调用，那肯定就需要通过网络来传输数据。虽然传输协议可以有多种选择，但考虑到可靠性的话，我们一般默认采用 TCP 协议。为了屏蔽网络传输的复杂性，我们需要封装一个单独的数据传输模块用来收发二进制数据，这个单独模块我们可以叫做传输模块。</p>
+<h3 id="协议模块"><a href="#协议模块" class="headerlink" title="协议模块"></a>协议模块</h3><p>用户请求的时候是基于方法调用，方法出入参数都是对象数据，对象是肯定没法直接在网络中传输的，我们需要提前把它转成可传输的二进制，这就是我们说的序列化过程。但只是把方法调用参数的二进制数据传输到服务提供方是不够的，我们需要在方法调用参数的二进制数据后面增加“断句”符号来分隔出不同的请求，在两个“断句”符号中间放的内容就是我们请求的二进制数据，这个过程我们叫做协议封装。</p>
+<p>虽然这是两个不同的过程，但其目的都是一样的，都是为了保证数据在网络中可以正确传输。这里我说的正确，可不仅指数据能够传输，还需要保证传输后能正确还原出传输前的语义。所以我们可以把这两个处理过程放在架构中的同一个模块，统称为协议模块。</p>
+<p>除此之外，我们还可以在协议模块中加入压缩功能，这是因为压缩过程也是对传输的二进制数据进行操作。在实际的网络传输过程中，我们的请求数据包在数据链路层可能会因为太大而被拆分成多个数据包进行传输，为了减少被拆分的次数，从而导致整个传输过程时间太长的问题，我们可以在 RPC 调用的时候这样操作：在方法调用参数或者返回值的二进制数据大于某个阈值的情况下，我们可以通过压缩框架进行无损压缩，然后在另外一端也用同样的压缩算法进行解压，保证数据可还原。</p>
+<h3 id="Bootstrap模块"><a href="#Bootstrap模块" class="headerlink" title="Bootstrap模块"></a>Bootstrap模块</h3><p>传输和协议这两个模块是 RPC 里面最基础的功能，它们使对象可以正确地传输到服务提供方。但距离 RPC 的目标——实现像调用本地一样地调用远程，还缺少点东西。因为这两个模块所提供的都是一些基础能力，要让这两个模块同时工作的话，我们需要手写一些黏合的代码，但这些代码对我们使用 RPC 的研发人员来说是没有意义的，而且属于一个重复的工作，会导致使用过程的体验非常不友好。</p>
+<p>这就需要我们在 RPC 里面把这些细节对研发人员进行屏蔽，让他们感觉不到本地调用和远程调用的区别。假设有用到 Spring 的话，我们希望 RPC 能让我们把一个 RPC 接口定义成一个 Spring Bean，并且这个 Bean 也会统一被 Spring Bean Factory 管理，可以在项目中通过 Spring 依赖注入到方式引用。这是 RPC 调用的入口，我们一般叫做 Bootstrap 模块。</p>
+<h3 id="集群模块"><a href="#集群模块" class="headerlink" title="集群模块"></a>集群模块</h3><p>学到这儿，一个点对点（Point to Point）版本的 RPC 框架就完成了。我一般称这种模式的 RPC 框架为单机版本，因为它没有集群能力。所谓集群能力，就是针对同一个接口有着多个服务提供者，但这多个服务提供者对于我们的调用方来说是透明的，所以在 RPC 里面我们还需要给调用方找到所有的服务提供方，并需要在 RPC 里面维护好接口跟服务提供者地址的关系，这样调用方在发起请求的时候才能快速地找到对应的接收地址，这就是我们常说的“服务发现”。</p>
+<p>但服务发现只是解决了接口和服务提供方地址映射关系的查找问题，这更多是一种“静态数据”。说它是静态数据是因为，对于我们的 RPC 来说，我们每次发送请求的时候都是需要用 TCP 连接的，相对服务提供方 IP 地址，TCP 连接状态是瞬息万变的，所以我们的 RPC 框架里面要有连接管理器去维护 TCP 连接的状态。</p>
+<p>有了集群之后，提供方可能就需要管理好这些服务了，那我们的 RPC 就需要内置一些服务治理的功能，比如服务提供方权重的设置、调用授权等一些常规治理手段。而服务调用方需要额外做哪些事情呢？每次调用前，我们都需要根据服务提供方设置的规则，从集群中选择可用的连接用于发送请求。</p>
+<h3 id="整体架构"><a href="#整体架构" class="headerlink" title="整体架构"></a>整体架构</h3><p>那到这儿，一个比较完善的 RPC 框架基本就完成了，功能也差不多就是这些了。按照分层设计的原则，我将这些功能模块分为了四层，具体内容见图示：</p>
+<img src="/2021/04/01/rpclevel2/design1.jpg" style="zoom:24%;">
+
+<h2 id="可拓展架构"><a href="#可拓展架构" class="headerlink" title="可拓展架构"></a>可拓展架构</h2><p>但仅从功能角度设计出的软件架构并不够健壮，系统不仅要能正确地运行，还要以最低的成本进行可持续的维护，因此我们十分有必要关注系统的可扩展性。只有这样，才能满足业务变化的需求，让系统的生命力不断延伸。</p>
+<p>其实，我们设计 RPC 框架也是一样的，我们不可能在开始时就面面俱到。那有没有更好的方式来解决这些问题呢？这就是我们接下来要讲的插件化架构。</p>
+<p>在 RPC 框架里面，我们是怎么支持插件化架构的呢？我们可以将每个功能点抽象成一个接口，将这个接口作为插件的契约，然后把这个功能的接口与功能的实现分离，并提供接口的默认实现。在 Java 里面，JDK 有自带的 SPI（Service Provider Interface）服务发现机制，它可以动态地为某个接口寻找服务实现。使用 SPI 机制需要在 Classpath 下的 META-INF/services 目录里创建一个以服务接口命名的文件，这个文件里的内容就是这个接口的具体实现类。</p>
+<p>但在实际项目中，我们其实很少使用到 JDK 自带的 SPI 机制，首先它不能按需加载，ServiceLoader 加载某个接口实现类的时候，会遍历全部获取，也就是接口的实现类得全部载入并实例化一遍，会造成不必要的浪费。另外就是扩展如果依赖其它的扩展，那就做不到自动注入和装配，这就很难和其他框架集成，比如扩展里面依赖了一个 Spring Bean，原生的 Java SPI 就不支持。</p>
+<p>加上了插件功能之后，我们的 RPC 框架就包含了两大核心体系——核心功能体系与插件体系，如下图所示：</p>
+<img src="/2021/04/01/rpclevel2/design2.jpg" style="zoom:24%;">
+
+<p>这时，整个架构就变成了一个微内核架构，我们将每个功能点抽象成一个接口，将这个接口作为插件的契约，然后把这个功能的接口与功能的实现分离并提供接口的默认实现。这样的架构相比之前的架构，有很多优势。首先它的可扩展性很好，实现了开闭原则，用户可以非常方便地通过插件扩展实现自己的功能，而且不需要修改核心功能的本身；其次就是保持了核心包的精简，依赖外部包少，这样可以有效减少开发人员引入 RPC 导致的包版本冲突问题。</p>
+<h1 id="服务发现"><a href="#服务发现" class="headerlink" title="服务发现"></a>服务发现</h1><p>对于服务调用方和服务提供方来说，其契约就是接口，相当于“通信录”中的姓名，服务节点就是提供该契约的一个具体实例。服务 IP 集合作为“通信录”中的地址，从而可以通过接口获取服务 IP 的集合来完成服务的发现。这就是我要说的 PRC 框架的服务发现机制，如下图所示：</p>
+<img src="/2021/04/01/rpclevel2/register.jpg" style="zoom:24%;">
+
+<ol>
+<li>服务注册：在服务提供方启动的时候，将对外暴露的接口注册到注册中心之中，注册中心将这个服务节点的 IP 和接口保存下来。</li>
+<li>服务订阅：在服务调用方启动的时候，去注册中心查找并订阅服务提供方的 IP，然后缓存到本地，并用于后续的远程调用。</li>
+</ol>
+<h2 id="基于Zookeeper的服务发现"><a href="#基于Zookeeper的服务发现" class="headerlink" title="基于Zookeeper的服务发现"></a>基于Zookeeper的服务发现</h2><h3 id="基本实现"><a href="#基本实现" class="headerlink" title="基本实现"></a>基本实现</h3><p><strong><em>回到服务发现的本质，就是需要完成接口跟服务提供者 IP 之间的映射。当然，注册中心也要能完成实时变更推送。</em></strong>下面就来介绍下一种基于 ZooKeeper 的服务发现方式。</p>
+<p>整体的思路很简单，就是搭建一个 ZooKeeper 集群作为注册中心集群，服务注册的时候只需要服务节点向 ZooKeeper 节点写入注册信息即可，利用 ZooKeeper 的 Watcher 机制完成服务订阅与服务下发功能，整体流程如下图：</p>
+<img src="/2021/04/01/rpclevel2/zookeeper.jpg" style="zoom:24%;">
+
+<p>其中：</p>
+<ol>
+<li>服务平台管理端先在 ZooKeeper 中创建一个服务根路径，可以根据接口名命名（例如：/service/com.demo.xxService），在这个路径再创建服务提供方目录与服务调用方目录（例如：provider、consumer），分别用来存储服务提供方的节点信息和服务调用方的节点信息。</li>
+<li>当服务提供方发起注册时，会在服务提供方目录中创建一个临时节点，节点中存储该服务提供方的注册信息。</li>
+<li>当服务调用方发起订阅时，则在服务调用方目录中创建一个临时节点，节点中存储该服务调用方的信息，同时服务调用方 watch 该服务的服务提供方目录（/service/com.demo.xxService/provider）中所有的服务节点数据。</li>
+<li>当服务提供方目录下有节点数据发生变更时，ZooKeeper 就会通知给发起订阅的服务调用方。</li>
+</ol>
+<h3 id="存在缺陷"><a href="#存在缺陷" class="headerlink" title="存在缺陷"></a>存在缺陷</h3><p>一个比较真实的故事，很多的RPC 框架服务发现就是基于 ZooKeeper 实现的，一开始都能平稳运行，但后续团队的微服务化程度越来越高之后，ZooKeeper 集群整体压力也越来越高，尤其在集中上线的时候越发明显。在大规模上线的时候，会爆发问题。当时有超大批量的服务节点在同时发起注册操作，ZooKeeper 集群的 CPU 突然飙升，导致 ZooKeeper 集群不能工作了。解决问题时，也无法立马将 ZooKeeper 集群重新启动，一直要等到 ZooKeeper 集群恢复后业务才能继续上线。</p>
+<p>这种的根本原因就是 ZooKeeper 本身的性能问题，当连接到 ZooKeeper 的节点数量特别多，对 ZooKeeper 读写特别频繁，且 ZooKeeper 存储的目录达到一定数量的时候，ZooKeeper 将不再稳定，CPU 持续升高，最终宕机。而宕机之后，由于各业务的节点还在持续发送读写请求，刚一启动，ZooKeeper 就因无法承受瞬间的读写压力，马上宕机。</p>
+<h3 id="方案建议"><a href="#方案建议" class="headerlink" title="方案建议"></a>方案建议</h3><p>ZooKeeper保证的最终一致性也叫顺序一致性，即每个结点的数据都是严格按事务的发起顺序生效的。ZooKeeper 集群的每个节点的数据每次发生更新操作，都会通知其它 ZooKeeper 节点同时执行更新。它要求保证每个节点的数据能够实时的完全一致，这也就直接导致了 ZooKeeper 集群性能上的下降。当ZooKeeper 集群性能无法支撑现有规模的服务集群时，就需要重新选择服务发现方案。</p>
+<p>RPC 框架的服务发现，在服务节点刚上线时，服务调用方是可以容忍在一段时间之后（比如几秒钟之后）发现这个新上线的节点的。毕竟服务节点刚上线之后的几秒内，甚至更长的一段时间内没有接收到请求流量，对整个服务集群是没有什么影响的，所以我们可以牺牲掉 CP（强制一致性），而选择 AP（最终一致），来换取整个注册中心集群的性能和稳定性。所以，在超大规模集群实战中，更多需要考虑的是保证最终一致性。总结来说，就一关键词，“推拉结合，以拉为准”。</p>
+<h1 id="健康检测"><a href="#健康检测" class="headerlink" title="健康检测"></a>健康检测</h1><p>因为有了集群，所以每次发请求前，RPC 框架会根据路由和负载均衡算法选择一个具体的 IP 地址。为了保证请求成功，我们就需要确保每次选择出来的 IP 对应的连接是健康的。调用方跟服务集群节点之间的网络状况是瞬息万变的，两者之间可能会出现闪断或者网络设备损坏等情况，**<em>终极的解决方案是让调用方实时感知到节点的状态变化**</em>。</p>
+<h2 id="心跳机制"><a href="#心跳机制" class="headerlink" title="心跳机制"></a>心跳机制</h2><p>业内常用的检测方法就是用心跳机制。心跳机制说起来也不复杂，其实就是服务调用方每隔一段时间就问一下服务提供方，“兄弟，你还好吧？”，然后服务提供方很诚实地告诉调用方它目前的状态。</p>
+<p>当然实例的状态也不是单纯的健康与死亡，当发生如下情况时，则比较棘手。那台问题服务器在某些时间段出现了网络故障，但也还能处理部分请求。换句话说，它处于半死不活的状态。但是（是转折，也是关键点），它还没彻底“死”，还有心跳，这样，调用方就觉得它还正常，所以就没有把它及时挪出健康状态列表。</p>
+<img src="/2021/04/01/rpclevel2/health.jpg" style="zoom:24%;">
+
+<p>这里给出三种状态定义：</p>
+<ol>
+<li>健康状态：建立连接成功，并且心跳探活也一直成功；</li>
+<li>亚健康状态：建立连接成功，但是心跳请求连续失败；</li>
+<li>死亡状态：建立连接失败。</li>
+</ol>
+<p>节点的状态并不是固定不变的，它会根据心跳或者重连的结果来动态变化，具体状态间转换图如下：</p>
+<img src="/2021/04/01/rpclevel2/healthstate.jpg" style="zoom:24%;">
+
+<p>首先，一开始初始化的时候，如果建立连接成功，那就是健康状态，否则就是死亡状态。这里没有亚健康这样的中间态。紧接着，如果健康状态的节点连续出现几次不能响应心跳请求的情况，那就会被标记为亚健康状态。 处于亚健康状态，如果连续几次都能正常响应心跳请求，那就可以转回健康状态。如果一直不见好转，则可以判定为死亡节点，需要剔除出去。如果某个时间点里，死亡的节点能够重连成功，那它就可以重新被标记为健康状态。</p>
+<p>当服务调用方通过心跳机制了解了节点的状态之后，每次发请求的时候，就可以优先从健康列表里面选择一个节点。当然，如果健康列表为空，为了提高可用性，也可以尝试从亚健康列表里面选择一个，这就是具体的策略了。</p>
+<h2 id="具体策略"><a href="#具体策略" class="headerlink" title="具体策略"></a>具体策略</h2><p>一个节点从健康状态过渡到亚健康状态的前提是“连续”心跳失败次数必须到达某一个阈值，比如 3 次。而在上面的场景中，节点的心跳日志只是间歇性失败，也就是时好时坏，这样，失败次数根本没到阈值，调用方会觉得它只是“生病”了，并且很快就好了。</p>
+<p>调低阈值并不是一个很好的解决办法，治标不治本。第一，像前面说的那样，调用方跟服务节点之间网络状况瞬息万变，出现网络波动的时候会导致误判。第二，在负载高情况，服务端来不及处理心跳请求，由于心跳时间很短，会导致调用方很快触发连续心跳失败而造成断开连接。</p>
+<p>回到问题的本源，核心是服务节点网络有问题，心跳间歇性失败。现在判断节点状态只有一个维度，那就是心跳检测，那是不是可以再加上业务请求的维度呢？但是这里又有两个问题：</p>
+<ol>
+<li>调用方每个接口的调用频次不一样，有的接口可能 1 秒内调用上百次，有的接口可能半个小时才会调用一次，所以我们不能把简单的把总失败的次数当作判断条件。</li>
+<li>服务的接口响应时间也是不一样的，有的接口可能 1ms，有的接口可能是 10s，所以我们也不能把 TPS 至来当作判断条件。</li>
+</ol>
+<p>有一种比较合理的方案是通过计算**<em>可用率**</em>来实现。可用率的计算方式是某一个时间窗口内接口调用成功次数的百分比（成功次数 / 总调用次数）。当可用率低于某个比例就认为这个节点存在问题，把它挪到亚健康列表，这样既考虑了高低频的调用接口，也兼顾了接口响应时间不同的问题。</p>
+<h1 id="路由策略"><a href="#路由策略" class="headerlink" title="路由策略"></a>路由策略</h1><p>在真实环境中我们的服务提供方是以一个集群的方式提供服务，这对于服务调用方来说，就是一个接口会有多个服务提供方同时提供服务，所以我们的 RPC 在每次发起请求的时候，都需要从多个服务提供方节点里面选择一个用于发请求的节点。既然这些节点都可以用来完成这次请求，那么我们就可以简单地认为这些节点是同质的。就是这次请求无论发送到集合中的哪个节点上，返回的结果都是一样的。</p>
+<h2 id="现实问题"><a href="#现实问题" class="headerlink" title="现实问题"></a>现实问题</h2><p>既然服务提供方是以集群的方式对外提供服务，那就要考虑一些实际问题。要知道我们每次上线应用的时候都不止一台服务器会运行实例，那上线就涉及到变更，只要变更就可能导致原本正常运行的程序出现异常，尤其是发生重大变动的时候，导致我们应用不稳定的因素就变得很多。</p>
+<p>为了减少这种风险，我们一般会选择灰度发布我们的应用实例，比如我们可以先发布少量实例观察是否有异常，后续再根据观察的情况，选择发布更多实例还是回滚已经上线的实例。</p>
+<p>但这种方式不好的一点就是，线上一旦出现问题，影响范围还是挺大的。因为对于我们的服务提供方来说，我们的服务会同时提供给很多调用方来调用，尤其是像一些基础服务的调用方会更复杂，比如商品、价格等等，一旦刚上线的实例有问题了，那将会导致所有的调用方业务都会受损。</p>
+<h2 id="路由实现"><a href="#路由实现" class="headerlink" title="路由实现"></a>路由实现</h2><p>那对于我们的 RPC 框架来说，有什么的办法可以减少上线变更导致的风险吗？这就不得不提路由在 RPC 中的应用。为了减小上线出问题导致业务受损的范围，可以先让一小部分调用方请求过来进行逻辑验证，待没问题后再接入其他调用方，从而实现流量隔离的效果。</p>
+<p>在 RPC 里面服务调用方是通过服务发现的方式拿到了所有服务提供方的 IP 地址，那是不是就可以利用这个特点？当需要选择要灰度验证功能的时候，是不是就可以让注册中心在推送的时候区别对待，而不是一股脑的把服务提供方的 IP 地址推送到所有调用方。换句话说就是，注册中心只会把刚上线的服务 IP 地址推送到选择指定的调用方，而其他调用方是不能通过服务发现拿到这个 IP 地址的。</p>
+<p>通过服务发现的方式来隔离调用方请求，从逻辑上来看确实可行，但注册中心在 RPC 里面的定位是用来存储数据并保证数据一致性的。如果把这种复杂的计算逻辑放到注册中心里面，当集群节点变多之后，就会导致注册中心压力很大，而且大部分情况下，一般都是采用开源软件来搭建注册中心，要满足这种需求还需要进行二次开发。所以从实际的角度出发，通过影响服务发现来实现请求隔离并不划算。</p>
+<p>重新回到调用方发起 RPC 调用的流程。在 RPC 发起真实请求的时候，有一个步骤就是从服务提供方节点集合里面选择一个合适的节点（就是常说的负载均衡），那是不是可以在选择节点前加上“筛选逻辑”，把符合要求的节点筛选出来。那这个筛选的规则是什么呢？就是前面说的灰度过程中要验证的规则。通过这样的改造，RPC 调用流程就变成了这样：</p>
+<img src="/2021/04/01/rpclevel2/rpcrouter.jpg" style="zoom:24%;">
+
+<h3 id="IP路由"><a href="#IP路由" class="headerlink" title="IP路由"></a>IP路由</h3><p>这个筛选过程在我们的 RPC 里面有一个专业名词，就是“路由策略”，而上面例子里面的路由策略是我们常见的 IP 路由策略，用于限制可以调用服务提供方的 IP。使用了 IP 路由策略后，整个集群的调用拓扑如下图所示，调用方2限制不访问ip是P2的实例：</p>
+<img src="/2021/04/01/rpclevel2/iprouter.jpg" style="zoom:24%;">
+
+<h3 id="参数路由"><a href="#参数路由" class="headerlink" title="参数路由"></a>参数路由</h3><p>有了 IP 路由之后，上线过程中就可以做到只让部分调用方请求调用到新上线的实例，相对传统的灰度发布功能来说，这样做可以把试错成本降到最低。</p>
+<p>但在有些场景下，可能还需要更细粒度的路由方式。比如，在升级改造应用的时候，为了保证调用方能平滑地切换到的新应用逻辑，在升级过程中我们常用的方式是让新老应用并行运行一段时间，然后通过切流量百分比的方式，慢慢增大新应用承接的流量，直到新应用承担了 100% 且运行一段时间后才能去下线老应用。</p>
+<p>在流量切换的过程中，为了保证整个流程的完整性，必须保证某个主题对象的所有请求都使用同一种应用来承接。假设改造的是商品应用，那主题对象肯定是商品 ID，在切流量的过程中，必须保证某个商品的所有操作都是用新应用（或者老应用）来完成所有请求的响应。</p>
+<p>很显然，上面的 IP 路由并不能满足我们这个需求，因为 IP 路由只是限制调用方来源，并不会根据请求参数请求到我们预设的服务提供方节点上去。</p>
+<p>可以给所有的服务提供方节点都打上标签，用来区分新老应用节点。在服务调用方发生请求的时候，可以很容易地拿到请求参数，也就是例子中的商品 ID，可以根据注册中心下发的规则来判断当前商品 ID 的请求是过滤掉新应用还是老应用的节点。因为规则对所有的调用方都是一样的，从而保证对应同一个商品 ID 的请求要么是新应用的节点，要么是老应用的节点。使用了参数路由策略后，整个集群的调用拓扑如下图所示：</p>
+<img src="/2021/04/01/rpclevel2/argrouter.jpg" style="zoom:24%;">
+
+<p>相比 IP 路由，参数路由支持的灰度粒度更小，他为服务提供方应用提供了另外一个服务治理的手段。灰度发布功能是 RPC 路由功能的一个典型应用场景，通过 RPC 路由策略的组合使用可以让服务提供方更加灵活地管理、调用自己的流量，进一步降低上线可能导致的风险。</p>
+<p>灰度发布功能作为 RPC 路由功能的一个典型应用场景，我们可以通过路由功能完成像定点调用、黑白名单等一些高级服务治理功能。在 RPC 里面，不管是哪种路由策略，其核心思想都是一样的，就是让请求按照我们设定的规则发送到目标节点上，从而实现流量隔离的效果。</p>
+<h1 id="负载均衡"><a href="#负载均衡" class="headerlink" title="负载均衡"></a>负载均衡</h1><h2 id="场景思考"><a href="#场景思考" class="headerlink" title="场景思考"></a>场景思考</h2><p>先来看一下一个场景，一批服务节点，其中一台服务节点的配置较低，当流量高峰时，则很容易该服务节点负载较高，如下图所示：</p>
+<img src="/2021/04/01/rpclevel2/anli1.jpg" style="zoom:24%;">
+
+<p>这个问题其实挺好解决的：在治理平台上调低这几台机器的权重，这样的话，访问的流量自然就减少了。更进一步，服务治理平台应该能够动态地控制线上服务节点接收的访问量，当业务方发现部分机器负载过高或者响应变慢的时候再去调整节点权重，真的很可能已经影响到线上服务的可用率了。</p>
+<h2 id="Web负载均衡"><a href="#Web负载均衡" class="headerlink" title="Web负载均衡"></a>Web负载均衡</h2><p>简单介绍下负载均衡。当一个服务节点无法支撑现有的访问量时，一般会部署多个节点，组成一个集群，然后通过负载均衡，将请求分发给这个集群下的每个服务节点，从而达到多个服务节点共同分担请求压力的目的。</p>
+<img src="/2021/04/01/rpclevel2/fuzai.jpg" style="zoom:24%;">
+
+<p>负载均衡主要分为软负载和硬负载，软负载就是在一台或多台服务器上安装负载均衡的软件，如 LVS、Nginx 等，硬负载就是通过硬件设备来实现的负载均衡，如 F5 服务器等。负载均衡的算法主要有随机法、轮询法、最小连接法等。</p>
+<p>刚才介绍的负载均衡主要还是应用在 Web 服务上，Web 服务的域名绑定负载均衡的地址，通过负载均衡将用户的请求分发到一个个后端服务上。</p>
+<h2 id="RPC负载均衡"><a href="#RPC负载均衡" class="headerlink" title="RPC负载均衡"></a>RPC负载均衡</h2><h3 id="区别"><a href="#区别" class="headerlink" title="区别"></a>区别</h3><p>为什么不采用添加负载均衡器或者TCP/IP 四层代理，域名绑定负载均衡设备的 IP 或者四层代理 IP 的方式来实现RPC的负载均衡，主要考虑以下几点：</p>
+<ol>
+<li>搭建负载均衡设备或 TCP/IP 四层代理，需要额外成本；</li>
+<li>请求流量都经过负载均衡设备，多经过一次网络传输，会额外浪费一些性能；</li>
+<li>负载均衡添加节点和摘除节点，一般都要手动添加，当大批量扩容和下线时，会有大量的人工操作，“服务发现”在操作上是个问题；</li>
+<li>在服务治理的时候，针对不同接口服务、服务的不同分组，负载均衡策略是需要可配的，如果大家都经过这一个负载均衡设备，就不容易根据不同的场景来配置不同的负载均衡策略了。</li>
+</ol>
+<p>RPC 框架并不是依赖一个负载均衡设备或者负载均衡服务器来实现负载均衡的，而是由 RPC 框架本身实现的，服务调用者可以自主选择服务节点，发起服务调用。这样的好处是，RPC 框架不再需要依赖专门的负载均衡设备，可以节约成本；还减少了与负载均衡设备间额外的网络传输，提升了传输效率；并且均衡策略可配，便于服务治理。</p>
+<h3 id="一般实现"><a href="#一般实现" class="headerlink" title="一般实现"></a>一般实现</h3><p>RPC 的负载均衡完全由 RPC 框架自身实现，RPC 的服务调用者会与“注册中心”下发的所有服务节点建立长连接，在每次发起 RPC 调用时，服务调用者都会通过配置的负载均衡插件，自主选择一个服务节点，发起 RPC 调用请求。</p>
+<img src="/2021/04/01/rpclevel2/rpcfuzai.jpg" style="zoom:24%;">
+
+<p>RPC 负载均衡策略一般包括随机权重、Hash、轮询。当然，这还是主要看 RPC 框架自身的实现。其中的随机权重策略应该是我们最常用的一种了，通过随机算法，基本可以保证每个节点接收到的请求流量是均匀的；同时还可以通过控制节点权重的方式，来进行流量控制。比如默认每个节点的权重都是 100，但当我们把其中的一个节点的权重设置成 50 时，它接收到的流量就是其他节点的 1/2。</p>
+<p>由于负载均衡机制完全是由 RPC 框架自身实现的，所以它不再需要依赖任何负载均衡设备，自然也不会发生负载均衡设备的单点问题，服务调用方的负载均衡策略也完全可配，同时可以通过控制权重的方式，对负载均衡进行治理。</p>
+<h3 id="自适应负载均衡"><a href="#自适应负载均衡" class="headerlink" title="自适应负载均衡"></a>自适应负载均衡</h3><p>刚才讲过，RPC 的负载均衡完全由 RPC 框架自身实现，服务调用者发起请求时，会通过配置的负载均衡插件，自主地选择服务节点。那是不是只要调用者知道每个服务节点处理请求的能力，再根据服务处理节点处理请求的能力来判断要打给它多少流量就可以了？当一个服务节点负载过高或响应过慢时，就少给它发送请求，反之则多给它发送请求。</p>
+<p>这里可以采用一种打分的策略，服务调用者收集与之建立长连接的每个服务节点的指标数据，如服务节点的负载指标、CPU 核数、内存大小、请求处理的耗时指标（如请求平均耗时、TP99、TP999）、服务节点的状态指标（如正常、亚健康）。通过这些指标，计算出一个分数。给服务节点打分也一样，可以为每个指标都设置一个指标权重占比，然后再根据这些指标数据，计算分数。</p>
+<p>有了每个服务节点的打分机制，再随机权重的负载均衡策略去控制，通过最终的指标分数修改服务节点最终的权重。这样，一个自适应的负载均衡我们就完成了，整体的设计方案如下图所示：</p>
+<img src="/2021/04/01/rpclevel2/rpcrouter2.jpg" style="zoom:24%;">
+
+<p>主要步骤如下：</p>
+<ol>
+<li>添加服务指标收集器，并将其作为插件，默认有运行时状态指标收集器、请求耗时指标收集器。</li>
+<li>运行时状态指标收集器收集服务节点 CPU 核数、CPU 负载以及内存等指标，在服务调用者与服务提供者的心跳数据中获取。</li>
+<li>请求耗时指标收集器收集请求耗时数据，如平均耗时、TP99、TP999 等。</li>
+<li>可以配置开启哪些指标收集器，并设置这些参考指标的指标权重，再根据指标数据和指标权重来综合打分。</li>
+<li>通过服务节点的综合打分与节点的权重，最终计算出节点的最终权重，之后服务调用者会根据随机权重的策略，来选择服务节点。</li>
+</ol>
+<p>通过自适应负载均衡器，可以就能根据服务调用者依赖的服务集群中每个节点的自身状态，智能地控制发送给每个服务节点的请求流量，防止因某个服务节点负载过高、请求处理过慢而影响到整个服务集群的可用率。</p>
+<h1 id="异常重试"><a href="#异常重试" class="headerlink" title="异常重试"></a>异常重试</h1><p>可以考虑这样一个场景。当发起一次 RPC 调用，去调用远程的一个服务，比如用户的登录操作，会先对用户的用户名以及密码进行验证，验证成功之后会获取用户的基本信息。当通过远程的用户服务来获取用户基本信息的时候，恰好网络出现了问题，比如网络突然抖了一下，导致请求失败了，而这个请求希望它能够尽可能地执行成功，这时候就需要重试机制了。</p>
+<p>当调用端发起的请求失败时，RPC 框架自身可以进行重试，再重新发送请求，用户可以自行设置是否开启重试以及重试的次数，如下图：</p>
+<img src="/2021/04/01/rpclevel2/errortry.jpg" style="zoom:24%;">
+
+<p>调用端在发起 RPC 调用时，会经过负载均衡，选择一个节点，之后它会向这个节点发送请求信息。当消息发送失败或收到异常消息时，就可以捕获异常，根据异常触发重试，重新通过负载均衡选择一个节点发送请求消息，并且记录请求的重试次数，当重试次数达到用户配置的重试次数的时候，就返回给调用端动态代理一个失败异常，否则就一直重试下去。</p>
+<h2 id="注意事项"><a href="#注意事项" class="headerlink" title="注意事项"></a>注意事项</h2><h3 id="可选择异常重试"><a href="#可选择异常重试" class="headerlink" title="可选择异常重试"></a>可选择异常重试</h3><p>RPC 框架的重试机制就是调用端发现请求失败时捕获异常，之后触发重试，但并不是所有异常都触发重试机制。因为这个异常可能是服务提供方抛回来的业务异常，它是应该正常返回给动态代理的，所以要在触发重试之前对捕获的异常进行判定，只有符合重试条件的异常才能触发重试，比如网络超时异常、网络连接异常等等。</p>
+<p>另外，服务端的业务逻辑抛给调用端一个异常信息，而服务端抛出这个异常是允许调用端重新发起一次。那这个时候对于调用端来说，它接收到了更新失败异常，虽然是服务端抛回来的业务异常，但也是可以进行重试的。</p>
+<p>RPC 框架是不会知道哪些业务异常能够去进行异常重试的，因此可以加个重试异常的白名单，用户可以将允许重试的异常加入到这个白名单中。当调用端发起调用，并且配置了异常重试策略，捕获到异常之后，就可以采用这样的异常处理策略。如果这个异常是 RPC 框架允许重试的异常，或者这个异常类型存在于可重试异常的白名单中，就允许对这个请求进行重试。</p>
+<h3 id="幂等性校验"><a href="#幂等性校验" class="headerlink" title="幂等性校验"></a>幂等性校验</h3><p>当网络突然抖动了一下导致请求超时了，但这个时候调用方的请求信息可能已经发送到服务提供方的节点上，这时候服务端逻辑有可能已经执行，那如果这个服务业务逻辑不是幂等的，触发重试的话则会引发问题。在使用 RPC 框架的时候，我们要确保被调用的服务的业务逻辑是幂等的，这样才能考虑根据事件情况开启 RPC 框架的异常重试功能。</p>
+<h3 id="重试导致接口超时"><a href="#重试导致接口超时" class="headerlink" title="重试导致接口超时"></a>重试导致接口超时</h3><p>继续考虑这样一个场景：当调用端的请求超时时间设置为 5s，结果连续重试 3 次，每次都耗时 2s，那最终这个请求的耗时是 6s，那这样的话，调用端设置的时间是否需要调整。</p>
+<p>连续的异常重试可能会出现一种不可靠的情况，那就是连续的异常重试并且每次处理的请求时间比较长，最终会导致请求处理的时间过长，超出用户设置的超时时间。**<em>解决这个问题最直接的方式就是，在每次重试后都重置一下请求的超时时间。**</em> 当调用端发起 RPC 请求时，如果发送请求发生异常并触发了异常重试，可以先判定下这个请求是否已经超时，如果已经超时了就直接返回超时异常，否则就先重置下这个请求的超时时间，之后再发起重试。</p>
+<h3 id="异常重试策略"><a href="#异常重试策略" class="headerlink" title="异常重试策略"></a>异常重试策略</h3><p>当调用端设置了异常重试策略，发起了一次 RPC 调用，通过负载均衡选择了节点，将请求消息发送到这个节点，这时这个节点由于负载压力较大，导致这个请求处理失败了，调用端触发了重试，再次通过负载均衡选择了一个节点，结果恰好仍选择了这个节点，那么在这种情况下，重试的效果则有可能受到影响。因此，需要在所有发起重试、负载均衡选择节点的时候，去掉重试之前出现过问题的那个节点，以保证重试的成功率。</p>
+<h2 id="重试机制"><a href="#重试机制" class="headerlink" title="重试机制"></a>重试机制</h2><p>根据以上的分析，可以得出一个相对可靠的重试机制，如下图：</p>
+<img src="/2021/04/01/rpclevel2/errortry2.jpg" style="zoom:24%;">
+
+<p>这个机制是当调用端发起的请求失败时，如果配置了异常重试策略，RPC 框架会捕捉异常，对异常进行判定，符合条件则进行重试，重新发送请求。</p>
+<p>在重试的过程中，为了能够在约定的时间内进行安全可靠地重试，在每次触发重试之前，需要先判定下这个请求是否已经超时，如果超时了会直接返回超时异常，否则需要重置下这个请求的超时时间，防止因多次重试导致这个请求的处理时间超过用户配置的超时时间，从而影响到业务处理的耗时。</p>
+<p>在发起重试、负载均衡选择节点的时候，应该去掉重试之前出现过问题的那个节点，这样可以提高重试的成功率，并且允许用户配置可重试异常的白名单，这样可以让 RPC 框架的异常重试功能变得更加友好。另外，在使用 RPC 框架的重试机制时，要确保被调用的服务的业务逻辑是幂等的，这样才能考虑是否使用重试，这一点至关重要。</p>
+<h1 id="服务上下线"><a href="#服务上下线" class="headerlink" title="服务上下线"></a>服务上下线</h1><h2 id="优雅关闭"><a href="#优雅关闭" class="headerlink" title="优雅关闭"></a>优雅关闭</h2><h3 id="服务重启"><a href="#服务重启" class="headerlink" title="服务重启"></a>服务重启</h3><p>在重启服务的过程中，RPC 需要考虑让调用方系统不出问题。先要简述下上线的大概流程：当服务提供方要发版上线的时候，一般是通过部署系统完成实例重启。在这个过程中，服务提供方的团队并不会事先告诉调用方他们需要操作哪些机器，从而让调用方去事先切走流量。而对调用方来说，它也无法预测到服务提供方要对哪些机器重启上线，因此负载均衡就有可能把要正在重启的机器选出来，这样就会导致把请求发送到正在重启中的机器里面，从而导致调用方不能拿到正确的响应结果。</p>
+<img src="/2021/04/01/rpclevel2/shutdown.jpg" style="zoom:24%;">
+
+<p>在服务重启的时候，对于调用方来说，这时候可能会存在以下几种情况：</p>
+<ul>
+<li>调用方发请求前，目标服务已经下线。对于调用方来说，跟目标节点的连接会断开，这时候调用方可以立马感知到，并且在其健康列表里面会把这个节点挪掉，自然也就不会被负载均衡选中。</li>
+<li>调用方发请求的时候，目标服务正在关闭，但调用方并不知道它正在关闭，而且两者之间的连接也没断开，所以这个节点还会存在健康列表里面，因此该节点就有一定概率会被负载均衡选中。</li>
+</ul>
+<h3 id="关闭流程"><a href="#关闭流程" class="headerlink" title="关闭流程"></a>关闭流程</h3><p>在重启服务机器前，可以先通过“某种方式”把要下线的机器从调用方维护的“健康列表”里面删除就可以了，这样负载均衡就选不到这个节点了。</p>
+<p>最没有效率的办法就是人工通知调用方，让他们手动摘除要下线的机器，这种方式很原始也很直接。但这样对于提供方上线的过程来说太繁琐了，每次上线都要通知到所有调用我接口的团队，整个过程既浪费时间又没有意义，显然不能被正常接受。</p>
+<p>当服务提供方关闭前，可以先通知注册中心进行下线，然后通过注册中心告诉调用方进行节点摘除。关闭流程如下图所示：</p>
+<img src="/2021/04/01/rpclevel2/noticeshuntdown.jpg" style="zoom:24%;">
+
+<p>如上图所示，整个关闭过程中依赖了两次 RPC 调用，一次是服务提供方通知注册中心下线操作，一次是注册中心通知服务调用方下线节点操作。注册中心通知服务调用方都是异步的，服务发现只保证最终一致性，并不保证实时性，所以注册中心在收到服务提供方下线的时候，并不能成功保证把这次要下线的节点推送到所有的调用方。所以这么来看，通过服务发现并不能做到应用无损关闭。</p>
+<p>不能强依赖“服务发现”来通知调用方要下线的机器，那服务提供方自己来通知行不行？因为在 RPC 里面调用方跟服务提供方之间是长连接，可以在提供方应用内存里面维护一份调用方连接集合，当服务要关闭的时候，挨个去通知调用方去下线这台机器。这样整个调用链路就变短了，对于每个调用方来说就一次 RPC，可以确保调用的成功率很高。大部分场景下，这么做确实没有问题，但是还是会偶尔会出现，因为服务提供方上线而导致调用失败的问题。</p>
+<p>出问题请求的时间点跟收到服务提供方关闭通知的时间点很接近，只比关闭通知的时间早不到 1ms，如果再加上网络传输时间的话，那服务提供方收到请求的时候，它应该正在处理关闭逻辑。这就说明服务提供方关闭的时候，并没有正确处理关闭后接收到的新请求。</p>
+<h3 id="流程优化"><a href="#流程优化" class="headerlink" title="流程优化"></a>流程优化</h3><p>知道了根本原因，问题就很好解决了。因为服务提供方已经开始进入关闭流程，那么很多对象就可能已经被销毁了，关闭后再收到的请求按照正常业务请求来处理，肯定是没法保证能处理的。所以可以在关闭的时候，设置一个请求“挡板”，挡板的作用就是告诉调用方，提供方已经开始进入关闭流程了，不能再处理你这个请求了。</p>
+<p>基于这个思路，可以这么处理：当服务提供方正在关闭，如果这之后还收到了新的业务请求，服务提供方直接返回一个特定的异常给调用方（比如 ShutdownException）。这个异常就是告诉调用方“我已经收到这个请求了，但是我正在关闭，并没有处理这个请求”，然后调用方收到这个异常响应后，RPC 框架把这个节点从健康列表挪出，并把请求自动重试到其他节点，因为这个请求是没有被服务提供方处理过，所以可以安全地重试到其他节点，这样就可以实现对业务无损。</p>
+<p>但如果只是靠等待被动调用，就会让这个关闭过程整体有点漫长。因为有的调用方那个时刻没有业务请求，就不能及时地通知调用方了，所以可以加上主动通知流程，这样既可以保证实时性，也可以避免通知失败的情况。</p>
+<p>那么问题又来了，如何捕捉关闭事件呢？可以通过捕获操作系统的进程信号来获取，在 Java 语言里面，对应的是 Runtime.addShutdownHook 方法，可以注册关闭的钩子。在 RPC 启动的时候，提前注册关闭钩子，并在里面添加了两个处理程序，一个负责开启关闭标识，一个负责安全关闭服务对象，服务对象在关闭的时候会通知调用方下线节点。同时需要在调用链里面加上挡板处理器，当新的请求来的时候，会判断关闭标识，如果正在关闭，则抛出特定异常。</p>
+<p>这里还有一个问题，关闭过程中已经在处理的请求也要保证正确处理。所以最好能够判断当前是否有正在处理的请求，可以在服务对象加上引用计数器，每开始处理请求之前加一，完成请求处理减一，通过该计数器就可以快速判断是否有正在处理的请求。</p>
+<p><strong><em>服务对象在关闭过程中，会拒绝新的请求，同时根据引用计数器等待正在处理的请求全部结束之后才会真正关闭。但考虑到有些业务请求可能处理时间长，或者存在被挂住的情况，为了避免一直等待造成应用无法正常退出，可以在整个 ShutdownHook 里面，加上超时时间控制，当超过了指定时间没有结束，则强制退出应用。超时时间我建议可以设定成 10s，基本可以确保请求都处理完了。整个流程如下图所示：</em></strong></p>
+<img src="/2021/04/01/rpclevel2/downprocess.jpg" style="zoom:24%;">
+
+<p>一个好的关闭流程，可以确保使用我们框架的业务实现平滑的上下线，而不用担心重启导致的问题。</p>
+<h2 id="优雅启动"><a href="#优雅启动" class="headerlink" title="优雅启动"></a>优雅启动</h2><p>优雅启动首先要做到的是，避免流量打到没有启动完成的节点上。并且运行了一段时间后的应用，执行速度会比刚启动的应用更快。这是因为在 Java 里面，在运行过程中，JVM 虚拟机会把高频的代码编译成机器码，被加载过的类也会被缓存到 JVM 缓存中，再次使用的时候不会触发临时加载，这样就使得“热点”代码的执行不用每次都通过解释，从而提升执行速度。如果让我们刚启动的应用就承担像停机前一样的流量，这会使应用在启动之初就处于高负载状态，从而导致调用方过来的请求可能出现大面积超时，进而对线上业务产生损害行为。</p>
+<p>既然问题的关键是在于“刚重启的服务提供方因为没有预跑就承担了大流量”，那是不是可以通过某些方法，让应用一开始只接少许流量呢？这样低功率运行一段时间后，再逐渐提升至最佳状态。</p>
+<h3 id="启动预热"><a href="#启动预热" class="headerlink" title="启动预热"></a>启动预热</h3><p>简单来说，就是让刚启动的服务提供方应用不承担全部的流量，而是让它被调用的次数随着时间的移动慢慢增加，最终让流量缓和地增加到跟已经运行一段时间后的水平一样。</p>
+<p>现在是要控制调用方发送到服务提供方的流量。可以先简单地回顾下调用方发起的 RPC 调用流程是怎样的，调用方应用通过服务发现能够获取到服务提供方的 IP 地址，然后每次发送请求前，都需要通过负载均衡算法从连接池中选择一个可用连接。那这样的话，是不是就可以让负载均衡在选择连接的时候，区分一下是否是刚启动不久的应用？对于刚启动的应用，可以让它被选择到的概率特别低，但这个概率会随着时间的推移慢慢变大，从而实现一个动态增加流量的过程。</p>
+<p>首先对于调用方来说，要知道服务提供方的启动时间。这里给出两种方法，一种是服务提供方在启动的时候，把自己启动的时间告诉注册中心；另外一种就是注册中心收到的服务提供方的请求注册时间。调用方通过服务发现，除了可以拿到 IP 列表，还可以拿到对应的启动时间。上面介绍过一种基于权重的负载均衡，但是这个权重是由服务提供方设置的，属于一个固定状态。现在要让这个权重变成动态的，并且是随着时间的推移慢慢增加到服务提供方设定的固定值。</p>
+<p>这样就可以保证当服务提供方运行时长小于预热时间时，对服务提供方进行降权，减少被负载均衡选择的概率，避免让应用在启动之初就处于高负载状态，从而实现服务提供方在启动后有一个预热的过程。</p>
+<p>启动预热更多是从调用方的角度出发，去解决服务提供方应用冷启动的问题，让调用方的请求量通过一个时间窗口过渡，慢慢达到一个正常水平，从而实现平滑上线。</p>
+<h3 id="延迟暴露"><a href="#延迟暴露" class="headerlink" title="延迟暴露"></a>延迟暴露</h3><p>应用启动的时候都是通过 main 入口，然后顺序加载各种相关依赖的类。以 Spring 应用启动为例，在加载的过程中，Spring 容器会顺序加载 Spring Bean，如果某个 Bean 是 RPC 服务的话，我们不光要把它注册到 Spring-BeanFactory 里面去，还要把这个 Bean 对应的接口注册到注册中心。注册中心在收到新上线的服务提供方地址的时候，会把这个地址推送到调用方应用内存中；当调用方收到这个服务提供方地址的时候，就会去建立连接发请求。</p>
+<p>因为服务提供方应用可能还在加载其它的 Bean。对于调用方来说，只要获取到了服务提供方的 IP，就有可能发起 RPC 调用，但如果这时候服务提供方没有启动完成的话，就会导致调用失败，从而使业务受损。</p>
+<p>出现这种问题的根本原因是，服务提供方应用在没有启动完成的时候，调用方的请求就过来了，而调用方请求过来的原因是，服务提供方应用在启动过程中把解析到的 RPC 服务注册到了注册中心，这就导致在后续加载没有完成的情况下服务提供方的地址就被服务调用方感知到了。</p>
+<p>这样的话，其实就可以把接口注册到注册中心的时间挪到应用启动完成后。具体的做法就是在应用启动加载、解析 Bean 的时候，如果遇到了 RPC 服务的 Bean，只先把这个 Bean 注册到 Spring-BeanFactory 里面去，而并不把这个 Bean 对应的接口注册到注册中心，只有等应用启动完成后，才把接口注册到注册中心用于服务发现，从而实现让服务调用方延迟获取到服务提供方地址。</p>
+<p>这样是可以保证应用在启动完后才开始接入流量的，但其实这样做，还是没有实现最开始的目标。因为这时候应用虽然启动完成了，但并没有执行相关的业务代码，所以 JVM 内存里面还是冷的。如果这时候大量请求过来，还是会导致整个应用在高负载模式下运行，从而导致不能及时地返回请求结果。而且在实际业务中，一个服务的内部业务逻辑一般会依赖其它资源的，比如缓存数据。如果能在服务正式提供服务前，先完成缓存的初始化操作，而不是等请求来了之后才去加载，就可以降低重启后第一次请求出错的概率。</p>
+<p>可以在服务提供方应用启动后，接口注册到注册中心前，预留一个 Hook 过程，让用户可以实现可扩展的 Hook 逻辑。用户可以在 Hook 里面模拟调用逻辑，从而使 JVM 指令能够预热起来，并且用户也可以在 Hook 里面事先预加载一些资源，只有等所有的资源都加载完成后，最后才把接口注册到注册中心。整个应用启动过程如下图所示：</p>
+ <img src="/2021/04/01/rpclevel2/start.jpg" style="zoom:24%;">
+
+<h1 id="流量控制"><a href="#流量控制" class="headerlink" title="流量控制"></a>流量控制</h1><p>RPC 是解决分布式系统通信问题的一大利器，而分布式系统的一大特点就是高并发，所以说 RPC 也会面临高并发的场景。在这样的情况下，提供服务的每个服务节点就都可能由于访问量过大而引起一系列的问题，比如业务处理耗时过长、CPU 飘高、频繁 Full GC 以及服务进程直接宕机等等。但是在生产环境中，要保证服务的稳定性和高可用性，这时就需要业务进行自我保护，从而保证在高访问量、高并发的场景下，应用系统依然稳定，服务依然高可用。</p>
+<h2 id="熔断限流"><a href="#熔断限流" class="headerlink" title="熔断限流"></a>熔断限流</h2><h3 id="服务端限流"><a href="#服务端限流" class="headerlink" title="服务端限流"></a>服务端限流</h3><p>在 RPC 调用中服务端的自我保护策略就是限流。限流是一个比较通用的功能，可以在 RPC 框架中集成限流的功能，让使用方自己去配置限流阈值；还可以在服务端添加限流逻辑，当调用端发送请求过来时，服务端在执行业务逻辑之前先执行限流逻辑，如果发现访问量过大并且超出了限流的阈值，就让服务端直接抛回给调用端一个限流异常，否则就执行正常的业务逻辑。服务端限流的方式有很多，比如最简单的计数器，还有可以做到平滑限流的滑动窗口、漏斗算法以及令牌桶算法等等。其中令牌桶算法最为常用。</p>
+<p>考虑一下特殊场景，当一个服务提供给多个应用的调用方去调用，这时有一个应用的调用方发送过来的请求流量要比其它的应用大很多，这时就应该对这个应用下的调用端发送过来的请求流量进行限流。所以说在做限流的时候要考虑应用级别的维度，甚至是 IP 级别的维度，这样做不仅可以对一个应用下的调用端发送过来的请求流量做限流，还可以对一个 IP 发送过来的请求流量做限流。这里可以通过 RPC 治理的管理端进行配置，再通过注册中心或者配置中心将限流阈值的配置下发到服务提供方的每个节点上，实现动态配置。</p>
+<p>在服务端实现限流，配置的限流阈值是作用在每个服务节点上的。接着看这样一个场景：提供了一个服务，而这个服务的业务逻辑依赖的是 MySQL 数据库，由于 MySQL 数据库的性能限制，是需要对其进行保护。假如在 MySQL 处理业务逻辑中，SQL 语句的能力是每秒 10000 次，那么提供的服务处理的访问量就不能超过每秒 10000 次，而服务有 10 个节点，这时配置的限流阈值应该是每秒 1000 次。那如果之后因为某种需求对这个服务扩容了呢？扩容到 20 个节点，是不是就要把限流阈值调整到每秒 500 次呢？这样操作每次都要自己去计算，重新配置，显然太麻烦了。</p>
+<p>可以提供一个专门的限流服务，让每个节点都依赖一个限流服务，当请求流量打过来时，服务节点触发限流逻辑，调用这个限流服务来判断是否到达了限流阈值。甚至可以将限流逻辑放在调用端，调用端在发出请求时先触发限流逻辑，调用限流服务，如果请求量已经到达了限流阈值，请求都不需要发出去，直接返回给动态代理一个限流异常即可。</p>
+<p>这种限流方式可以让整个服务集群的限流变得更加精确，但也由于依赖了一个限流服务，它在性能和耗时上与单机的限流方式相比是有很大劣势的。至于要选择哪种限流方式，就要结合具体的应用场景进行选择了。</p>
+<h3 id="调用段限流"><a href="#调用段限流" class="headerlink" title="调用段限流"></a>调用段限流</h3><p>刚才讲解了服务端进行自我保护，最简单有效的方式就是限流。那对于调用段呢，先来看一个场景，假如要发布一个服务 B，而服务 B 又依赖服务 C，当一个服务 A 来调用服务 B 时，服务 B 的业务逻辑调用服务 C，而这时服务 C 响应超时了，由于服务 B 依赖服务 C，C 超时直接导致 B 的业务逻辑一直等待，而这个时候服务 A 在频繁地调用服务 B，服务 B 就可能会因为堆积大量的请求而导致服务宕机。</p>
+<img src="/2021/04/01/rpclevel2/diaoyong.jpg" style="zoom:24%;">
+
+<p>所以说，在一个服务作为调用端调用另外一个服务时，为了防止被调用的服务出现问题而影响到作为调用端的这个服务，这个服务也需要进行自我保护，而最有效的自我保护方式就是熔断。</p>
+<p>可以先了解下熔断机制。熔断器的工作机制主要是关闭、打开和半打开这三个状态之间的切换。在正常情况下，熔断器是关闭的；当调用端调用下游服务出现异常时，熔断器会收集异常指标信息进行计算，当达到熔断条件时熔断器打开，这时调用端再发起请求是会直接被熔断器拦截，并快速地执行失败逻辑；当熔断器打开一段时间后，会转为半打开状态，这时熔断器允许调用端发送一个请求给服务端，如果这次请求能够正常地得到服务端的响应，则将状态置为关闭状态，否则设置为打开。</p>
+<img src="/2021/04/01/rpclevel2/rongduan.jpg" style="zoom:24%;">
+
+<p>在 RPC 调用的流程中，动态代理是 RPC 调用的第一个关口。在发出请求时可以先经过熔断器，如果状态是闭合则正常发出请求，如果状态是打开则执行熔断器的失败策略。</p>
+<h2 id="流量隔离"><a href="#流量隔离" class="headerlink" title="流量隔离"></a>流量隔离</h2><p>熔断限流，熔断是调用方为了避免在调用过程中，服务提供方出现问题的时候，自身资源被耗尽的一种保护行为；而限流则是服务提供方为防止自己被突发流量打垮的一种保护行为。虽然这两种手段作用的对象不同，但出发点都是为了实现自我保护，所以一旦发生这种行为，业务都是有损的。其实面对复杂的业务以及高并发场景时，还有别的手段，可以最大限度地保障业务无损，那就是隔离流量。</p>
+<p>既然是要求不同的调用方应用能拿到的池子内容不同，那就顺理成章回想下服务发现了，因为在 RPC 流程里，能影响到调用方获取服务节点的逻辑就是它了。服务调用方是通过接口名去注册中心找到所有的服务节点来完成服务发现的，那换到这里的话，这样做其实并不合适，因为这样调用方会拿到所有的服务节点。因此为了实现分组隔离逻辑，需要重新改造下服务发现的逻辑，调用方去获取服务节点的时候除了要带着接口名，还需要另外加一个分组参数，相应的服务提供方在注册的时候也要带上分组参数。通过改造后的分组逻辑，可以把服务提供方所有的实例分成若干组，每一个分组可以提供给单个或者多个不同的调用方来调用。这个分组并没有一个可衡量的标准。一般非核心应用不要跟核心应用分在同一个组，核心应用之间应该做好隔离，一个重要的原则就是保障核心应用不受影响。</p>
+<img src="/2021/04/01/rpclevel2/groupm.jpg" style="zoom:24%;">
+
+<p>为了保证高可用性，一般还需要把配置的分组区分下主次分组，只有在主分组上的节点都不可用的情况下才去选择次分组节点；只要主分组里面的节点恢复正常，就必须把流量都切换到主节点上，整个切换过程对于应用层完全透明，从而在一定程度上保障调用方应用的高可用。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E5%88%86%E5%B8%83%E5%BC%8F%E7%B3%BB%E7%BB%9F/" rel="tag"># 分布式系统</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2021/03/31/rpc/" rel="prev" title="RPC入门">
+      <i class="fa fa-chevron-left"></i> RPC入门
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#RPC%E8%BF%9B%E9%98%B6%E7%AE%80%E4%BB%8B"><span class="nav-number">1.</span> <span class="nav-text">RPC进阶简介</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1"><span class="nav-number">2.</span> <span class="nav-text">架构设计</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%9F%BA%E7%A1%80%E6%9E%B6%E6%9E%84"><span class="nav-number">2.1.</span> <span class="nav-text">基础架构</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BC%A0%E8%BE%93%E6%A8%A1%E5%9D%97"><span class="nav-number">2.1.1.</span> <span class="nav-text">传输模块</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8D%8F%E8%AE%AE%E6%A8%A1%E5%9D%97"><span class="nav-number">2.1.2.</span> <span class="nav-text">协议模块</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Bootstrap%E6%A8%A1%E5%9D%97"><span class="nav-number">2.1.3.</span> <span class="nav-text">Bootstrap模块</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%9B%86%E7%BE%A4%E6%A8%A1%E5%9D%97"><span class="nav-number">2.1.4.</span> <span class="nav-text">集群模块</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="nav-number">2.1.5.</span> <span class="nav-text">整体架构</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%AF%E6%8B%93%E5%B1%95%E6%9E%B6%E6%9E%84"><span class="nav-number">2.2.</span> <span class="nav-text">可拓展架构</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%9C%8D%E5%8A%A1%E5%8F%91%E7%8E%B0"><span class="nav-number">3.</span> <span class="nav-text">服务发现</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%9F%BA%E4%BA%8EZookeeper%E7%9A%84%E6%9C%8D%E5%8A%A1%E5%8F%91%E7%8E%B0"><span class="nav-number">3.1.</span> <span class="nav-text">基于Zookeeper的服务发现</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9F%BA%E6%9C%AC%E5%AE%9E%E7%8E%B0"><span class="nav-number">3.1.1.</span> <span class="nav-text">基本实现</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AD%98%E5%9C%A8%E7%BC%BA%E9%99%B7"><span class="nav-number">3.1.2.</span> <span class="nav-text">存在缺陷</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%96%B9%E6%A1%88%E5%BB%BA%E8%AE%AE"><span class="nav-number">3.1.3.</span> <span class="nav-text">方案建议</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%81%A5%E5%BA%B7%E6%A3%80%E6%B5%8B"><span class="nav-number">4.</span> <span class="nav-text">健康检测</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BF%83%E8%B7%B3%E6%9C%BA%E5%88%B6"><span class="nav-number">4.1.</span> <span class="nav-text">心跳机制</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%85%B7%E4%BD%93%E7%AD%96%E7%95%A5"><span class="nav-number">4.2.</span> <span class="nav-text">具体策略</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%B7%AF%E7%94%B1%E7%AD%96%E7%95%A5"><span class="nav-number">5.</span> <span class="nav-text">路由策略</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%8E%B0%E5%AE%9E%E9%97%AE%E9%A2%98"><span class="nav-number">5.1.</span> <span class="nav-text">现实问题</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%B7%AF%E7%94%B1%E5%AE%9E%E7%8E%B0"><span class="nav-number">5.2.</span> <span class="nav-text">路由实现</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#IP%E8%B7%AF%E7%94%B1"><span class="nav-number">5.2.1.</span> <span class="nav-text">IP路由</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8F%82%E6%95%B0%E8%B7%AF%E7%94%B1"><span class="nav-number">5.2.2.</span> <span class="nav-text">参数路由</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1"><span class="nav-number">6.</span> <span class="nav-text">负载均衡</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%9C%BA%E6%99%AF%E6%80%9D%E8%80%83"><span class="nav-number">6.1.</span> <span class="nav-text">场景思考</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Web%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1"><span class="nav-number">6.2.</span> <span class="nav-text">Web负载均衡</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#RPC%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1"><span class="nav-number">6.3.</span> <span class="nav-text">RPC负载均衡</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8C%BA%E5%88%AB"><span class="nav-number">6.3.1.</span> <span class="nav-text">区别</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%80%E8%88%AC%E5%AE%9E%E7%8E%B0"><span class="nav-number">6.3.2.</span> <span class="nav-text">一般实现</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%87%AA%E9%80%82%E5%BA%94%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1"><span class="nav-number">6.3.3.</span> <span class="nav-text">自适应负载均衡</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%BC%82%E5%B8%B8%E9%87%8D%E8%AF%95"><span class="nav-number">7.</span> <span class="nav-text">异常重试</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9"><span class="nav-number">7.1.</span> <span class="nav-text">注意事项</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8F%AF%E9%80%89%E6%8B%A9%E5%BC%82%E5%B8%B8%E9%87%8D%E8%AF%95"><span class="nav-number">7.1.1.</span> <span class="nav-text">可选择异常重试</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%B9%82%E7%AD%89%E6%80%A7%E6%A0%A1%E9%AA%8C"><span class="nav-number">7.1.2.</span> <span class="nav-text">幂等性校验</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%87%8D%E8%AF%95%E5%AF%BC%E8%87%B4%E6%8E%A5%E5%8F%A3%E8%B6%85%E6%97%B6"><span class="nav-number">7.1.3.</span> <span class="nav-text">重试导致接口超时</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%BC%82%E5%B8%B8%E9%87%8D%E8%AF%95%E7%AD%96%E7%95%A5"><span class="nav-number">7.1.4.</span> <span class="nav-text">异常重试策略</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%87%8D%E8%AF%95%E6%9C%BA%E5%88%B6"><span class="nav-number">7.2.</span> <span class="nav-text">重试机制</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%9C%8D%E5%8A%A1%E4%B8%8A%E4%B8%8B%E7%BA%BF"><span class="nav-number">8.</span> <span class="nav-text">服务上下线</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BC%98%E9%9B%85%E5%85%B3%E9%97%AD"><span class="nav-number">8.1.</span> <span class="nav-text">优雅关闭</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%9C%8D%E5%8A%A1%E9%87%8D%E5%90%AF"><span class="nav-number">8.1.1.</span> <span class="nav-text">服务重启</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%85%B3%E9%97%AD%E6%B5%81%E7%A8%8B"><span class="nav-number">8.1.2.</span> <span class="nav-text">关闭流程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%B5%81%E7%A8%8B%E4%BC%98%E5%8C%96"><span class="nav-number">8.1.3.</span> <span class="nav-text">流程优化</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BC%98%E9%9B%85%E5%90%AF%E5%8A%A8"><span class="nav-number">8.2.</span> <span class="nav-text">优雅启动</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%90%AF%E5%8A%A8%E9%A2%84%E7%83%AD"><span class="nav-number">8.2.1.</span> <span class="nav-text">启动预热</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%BB%B6%E8%BF%9F%E6%9A%B4%E9%9C%B2"><span class="nav-number">8.2.2.</span> <span class="nav-text">延迟暴露</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%B5%81%E9%87%8F%E6%8E%A7%E5%88%B6"><span class="nav-number">9.</span> <span class="nav-text">流量控制</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%86%94%E6%96%AD%E9%99%90%E6%B5%81"><span class="nav-number">9.1.</span> <span class="nav-text">熔断限流</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%9C%8D%E5%8A%A1%E7%AB%AF%E9%99%90%E6%B5%81"><span class="nav-number">9.1.1.</span> <span class="nav-text">服务端限流</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%B0%83%E7%94%A8%E6%AE%B5%E9%99%90%E6%B5%81"><span class="nav-number">9.1.2.</span> <span class="nav-text">调用段限流</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%B5%81%E9%87%8F%E9%9A%94%E7%A6%BB"><span class="nav-number">9.2.</span> <span class="nav-text">流量隔离</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">EvenLjj</p>
+  <div class="site-description" itemprop="description">记录最近所学所思，让岁月留下汗水的痕迹</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">18</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">EvenLjj</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a> 强力驱动
+  </div>
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+</div>
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
