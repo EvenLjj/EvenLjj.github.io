@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"always","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="简介前面已经了解了RPC 框架的基础架构和一系列治理功能，以及一些与集群管理相关的高级功能，如服务发现、健康检查、路由策略、负载均衡、优雅启停机等等。有了这些知识储备，应该对 RPC 框架有了较为充分的认识。但如果想要更深入地了解 RPC，更好地使用 RPC，就必须从 RPC 框架的整体性能上去考虑问题了。得知道如何去提升 RPC 框架的性能、稳定性、安全性、吞吐量，以及如何在分布式的场景下快速定">
+<meta property="og:type" content="article">
+<meta property="og:title" content="RPC高级">
+<meta property="og:url" content="http://yoursite.com/2021/04/06/rpclevel3/index.html">
+<meta property="og:site_name" content="个人成长博客">
+<meta property="og:description" content="简介前面已经了解了RPC 框架的基础架构和一系列治理功能，以及一些与集群管理相关的高级功能，如服务发现、健康检查、路由策略、负载均衡、优雅启停机等等。有了这些知识储备，应该对 RPC 框架有了较为充分的认识。但如果想要更深入地了解 RPC，更好地使用 RPC，就必须从 RPC 框架的整体性能上去考虑问题了。得知道如何去提升 RPC 框架的性能、稳定性、安全性、吞吐量，以及如何在分布式的场景下快速定">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://yoursite.com/2021/04/06/rpclevel3/future.jpg">
+<meta property="og:image" content="http://yoursite.com/2021/04/06/rpclevel3/centrolquxian.jpg">
+<meta property="og:image" content="http://yoursite.com/2021/04/06/rpclevel3/errortrace.jpg">
+<meta property="og:image" content="http://yoursite.com/2021/04/06/rpclevel3/ERROR.jpg">
+<meta property="og:image" content="http://yoursite.com/2021/04/06/rpclevel3/tracespan.jpg">
+<meta property="og:image" content="http://yoursite.com/2021/04/06/rpclevel3/timeyaobai.jpg">
+<meta property="og:image" content="http://yoursite.com/2021/04/06/rpclevel3/liulianghuifang.jpg">
+<meta property="og:image" content="http://yoursite.com/2021/04/06/rpclevel3/fanhua.jpg">
+<meta property="article:published_time" content="2021-04-06T01:47:39.000Z">
+<meta property="article:modified_time" content="2021-04-06T09:05:29.139Z">
+<meta property="article:author" content="EvenLjj">
+<meta property="article:tag" content="学习笔记">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://yoursite.com/2021/04/06/rpclevel3/future.jpg">
+
+<link rel="canonical" href="http://yoursite.com/2021/04/06/rpclevel3/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>RPC高级 | 个人成长博客</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">个人成长博客</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">纸上得来终觉浅，绝知此事要躬行</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021/04/06/rpclevel3/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="EvenLjj">
+      <meta itemprop="description" content="记录最近所学所思，让岁月留下汗水的痕迹">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="个人成长博客">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          RPC高级
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2021-04-06 09:47:39 / 修改时间：17:05:29" itemprop="dateCreated datePublished" datetime="2021-04-06T09:47:39+08:00">2021-04-06</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%88%86%E5%B8%83%E5%BC%8F%E7%B3%BB%E7%BB%9F/" itemprop="url" rel="index"><span itemprop="name">分布式系统</span></a>
+                </span>
+            </span>
+
+          
+            <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv" style="display: none;">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span id="busuanzi_value_page_pv"></span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h1><p>前面已经了解了RPC 框架的基础架构和一系列治理功能，以及一些与集群管理相关的高级功能，如服务发现、健康检查、路由策略、负载均衡、优雅启停机等等。有了这些知识储备，应该对 RPC 框架有了较为充分的认识。但如果想要更深入地了解 RPC，更好地使用 RPC，就必须从 RPC 框架的整体性能上去考虑问题了。得知道如何去提升 RPC 框架的性能、稳定性、安全性、吞吐量，以及如何在分布式的场景下快速定位问题等等。</p>
+<h1 id="异步RPC"><a href="#异步RPC" class="headerlink" title="异步RPC"></a>异步RPC</h1><h2 id="性能影响因素"><a href="#性能影响因素" class="headerlink" title="性能影响因素"></a>性能影响因素</h2><p>在使用 RPC 的过程中，谈到性能和吞吐量，第一反应就是选择一款高性能、高吞吐量的 RPC 框架，那影响到 RPC 调用的吞吐量的根本原因是什么呢？其实根本原因就是由于处理 RPC 请求比较耗时，并且 CPU 大部分的时间都在等待而没有去计算，从而导致 CPU 的利用率不够。</p>
+<p>那么导致 RPC 请求比较耗时的原因主要是在于 RPC 框架本身吗？事实上除非在网络比较慢或者使用方使用不当的情况下，否则，在大多数情况下，刨除业务逻辑处理的耗时时间，RPC 本身处理请求的效率就算在比较差的情况下也不过是毫秒级的。可以说 RPC 请求的耗时大部分都是业务耗时，比如业务逻辑中有访问数据库执行慢 SQL 的操作。所以说，在大多数情况下，影响到 RPC 调用的吞吐量的原因也就是业务逻辑处理慢了，CPU 大部分时间都在等待资源。</p>
+<p>要提升吞吐量，其实关键就两个字：“异步”。RPC 框架要做到完全异步化，实现全异步 RPC。如果我们每次发送一个异步请求，发送请求过后请求即刻就结束了，之后业务逻辑全部异步执行，结果异步通知，这样可以增加多么可观的吞吐量。</p>
+<h2 id="调用端异步"><a href="#调用端异步" class="headerlink" title="调用端异步"></a>调用端异步</h2><p>说到异步，最常用的方式就是返回 Future 对象的 Future 方式，或者入参为 Callback 对象的回调方式，而 Future 方式可以说是最简单的一种异步方式了。发起一次异步请求并且从请求上下文中拿到一个 Future，之后就可以调用 Future 的 get 方法获取结果。</p>
+<p>前面提到，一次 RPC 调用的本质就是调用端向服务端发送一条请求消息，服务端收到消息后进行处理，处理之后响应给调用端一条响应消息，调用端收到响应消息之后再进行处理，最后将最终的返回值返回给动态代理。</p>
+<p>一般而言，对于 RPC 框架，无论是同步调用还是异步调用，调用端的内部实现都是异步的。调用端发送的每条消息都有一个唯一的消息标识，实际上调用端向服务端发送请求消息之前会先创建一个 Future，并会存储这个消息标识与这个 Future 的映射，动态代理所获得的返回值最终就是从这个 Future 中获取的；当收到服务端响应的消息时，调用端会根据响应消息的唯一标识，通过之前存储的映射找到对应的 Future，将结果注入给那个 Future，再进行一系列的处理逻辑，最后动态代理从 Future 中获得到正确的返回值。</p>
+<img src="/2021/04/06/rpclevel3/future.jpg" style="zoom:24%;">
+
+<p>所谓的同步调用，不过是 RPC 框架在调用端的处理逻辑中主动执行了这个 Future 的 get 方法，让动态代理等待返回值；而异步调用则是 RPC 框架没有主动执行这个 Future 的 get 方法，用户可以从请求上下文中得到这个 Future，自己决定什么时候执行这个 Future 的 get 方法。</p>
+<h2 id="服务端异步"><a href="#服务端异步" class="headerlink" title="服务端异步"></a>服务端异步</h2><p>RPC 服务端接收到请求的二进制消息之后会根据协议进行拆包解包，之后将完整的消息进行解码并反序列化，获得到入参参数之后再通过反射执行业务逻辑。一般而言，对二进制消息数据包拆解包的处理是一定要在处理网络 IO 的线程中，如果网络通信框架使用的是 Netty 框架，那么对二进制包的处理是在 IO 线程中，而解码与反序列化的过程也往往在 IO 线程中处理。业务逻辑应该交给专门的业务线程池处理，以防止由于业务逻辑处理得过慢而影响到网络 IO 的处理。</p>
+<p>假设一个场景，一个服务，业务逻辑处理得就是比较慢，当访问量逐渐变大时，业务线程池很容易就被打满了，吞吐量很不理想，并且这时 CPU 的利用率也很低。调大业务线程池的线程数，的确勉强可以解决这个问题，但是对于 RPC 框架来说，往往都会有多个服务共用一个线程池的情况，即使调大业务线程池，比较耗时的服务很可能还会影响到其它的服务。所以最佳的解决办法是能够让业务线程池尽快地释放，那么就需要 RPC 框架能够支持服务端业务逻辑异步处理，这对提高服务的吞吐量有很重要的意义。</p>
+<p>服务端支持业务逻辑异步处理，这是个比较难处理的问题，因为服务端执行完业务逻辑之后，要对返回值进行序列化并且编码，将消息响应给调用端，但如果是异步处理，业务逻辑触发异步之后方法就执行完了，来不及将真正的结果进行序列化并编码之后响应给调用端。这时就需要 RPC 框架提供一种回调方式，让业务逻辑可以异步处理，处理完之后调用 RPC 框架的回调接口，将最终的结果通过回调的方式响应给调用端。</p>
+<p>说到服务端支持业务逻辑异步处理，结合刚才说到的 Future 方式异步。提供一种思路，其实可以让 RPC 框架支持 CompletableFuture，实现 RPC 调用在调用端与服务端之间完全异步。</p>
+<p>CompletableFuture 是 Java8 原生支持的。试想一下，假如 RPC 框架能够支持 CompletableFuture，现在发布一个 RPC 服务，服务接口定义的返回值是 CompletableFuture 对象，整个调用过程会分为这样几步：</p>
+<ul>
+<li>服务调用方发起 RPC 调用，直接拿到返回值 CompletableFuture 对象，之后就不需要任何额外的与 RPC 框架相关的操作了（刚才讲解 Future 方式时需要通过请求上下文获取 Future 的操作），直接就可以进行异步处理；</li>
+<li>在服务端的业务逻辑中创建一个返回值 CompletableFuture 对象，之后服务端真正的业务逻辑完全可以在一个线程池中异步处理，业务逻辑完成之后再调用这个 CompletableFuture 对象的 complete 方法，完成异步通知；</li>
+<li>调用端在收到服务端发送过来的响应之后，RPC 框架再自动地调用调用端拿到的那个返回值 CompletableFuture 对象的 complete 方法，这样一次异步调用就完成了。</li>
+</ul>
+<p>通过对 CompletableFuture 的支持，RPC 框架可以真正地做到在调用端与服务端之间完全异步，同时提升了调用端与服务端的两端的单机吞吐量。RPC 框架也可以有其它的异步策略，比如集成 RxJava，再比如 gRPC 的 StreamObserver 入参对象，但 CompletableFuture 是 Java8 原生提供的，无代码入侵性，并且在使用上更加方便。如果是 Java 开发，让 RPC 框架支持 CompletableFuture 可以说是最佳的异步解决方案。</p>
+<h1 id="安全体系"><a href="#安全体系" class="headerlink" title="安全体系"></a>安全体系</h1><p>说起安全问题，可能会想到像 SQL 注入、XSS 攻击等恶意攻击行为，还有就是相对更广义的安全，像网络安全、信息安全等。RPC 是解决应用间互相通信的框架，而应用之间的远程调用过程一般不会暴露在公网，换句话讲就是说 RPC 一般用于解决内部应用之间的通信，而这个“内部”是指应用都部署在同一个大局域网内。相对于公网环境，局域网的隔离性更好，也就相对更安全，所以在 RPC 里面很少考虑像数据包篡改、请求伪造等恶意行为。</p>
+<h2 id="鉴权"><a href="#鉴权" class="headerlink" title="鉴权"></a>鉴权</h2><p>当调用方在其它新业务场景里面要用之前项目中使用过的接口，就很有可能真的不跟服务提供方打招呼就直接调用了。这种行为对于服务提供方来说就很危险了，因为接入了新的调用方就意味着承担的调用量会变大，有时候很有可能新增加的调用量会成为压倒服务提供方的“最后一根稻草”，从而导致服务提供方无法正常提供服务，关键是服务提供方还不知道是被谁给压倒的。</p>
+<p>当然这也可以归结为一个流程问题，只要在公司内部规范好调用流程，就可以避免这种问题发生了。但就 RPC 本身来说，是不是可以提供某种功能来解决这种问题呢？毕竟对于人数众多的团队来说，光靠口头约定的流程并不能彻底杜绝这类问题，依然存在隐患，且不可控。</p>
+<p>要完成鉴权的功能，首先要有一个可以供调用方进行调用接口登记的地方，姑且称这个地方为“授权平台”，调用方可以在授权平台上申请自己应用里面要调用的接口，而服务提供方则可以在授权平台上进行审批，只有服务提供方审批后调用方才能调用。但这只是解决了调用数据收集的问题，并没有完成真正的授权认证功能，缺少一个检票的环节。</p>
+<p>既然有了刚搭建的授权平台，而且接口的授权数据也在这个平台上，自然就很容易想到是不是可以把这个检票的环节放到这个授权平台上呢？调用方每次发起业务请求的时候先去发一条认证请求到授权平台上，然后再进行接下来的访问。整个流程图如下：</p>
+<img src="/2021/04/06/rpclevel3/centrolquxian.jpg" style="zoom:24%;">
+
+<p>从使用功能的角度来说，目前这种设计是没有问题的，而且整个认证过程对 RPC 使用者来说也是透明的。但有一个问题就是这个授权平台承担了公司内所有 RPC 请求的次数总和，当公司内部 RPC 使用程度高了之后，这个授权平台就会成为一个瓶颈点，而且必须保证超高可用，一旦这个授权平台出现问题，影响的可就是全公司的 RPC 请求了。</p>
+<p>其实调用方能不能调用相关接口，是由服务提供方说了算，我服务提供方认为你是可以的，你就肯定能调，那是不是就可以把这个检票过程放到服务提供方里面呢？在调用方启动初始化接口的时候，带上授权平台上颁发的身份去服务提供方认证下，当认证通过后就认为这个接口可以调用。</p>
+<p>那么对于服务提供方验票的时候对照的数据来自哪儿，不能直接去请求授权平台，否则就又会遇到和前面方案一样的问题。可以通过密钥验证的方式来实现，HMAC 就是其中一种具体实现。服务提供方应用里面放一个用于 HMAC 签名的私钥，在授权平台上用这个私钥为申请调用的调用方应用进行签名，这个签名生成的串就变成了调用方唯一的身份。服务提供方在收到调用方的授权请求之后，只要需要验证下这个签名跟调用方应用信息是否对应得上就行了，这样集中式授权的瓶颈也就不存在了。</p>
+<h2 id="防伪"><a href="#防伪" class="headerlink" title="防伪"></a>防伪</h2><p>服务提供方会把接口 Jar 发布到私服上，以方便调用方能引入到项目中快速完成 RPC 调用，那有没有可能有人拿到你这个 Jar 后，发布出来一个服务提供方呢？这样的后果就是导致调用方通过服务发现拿到的服务提供方 IP 地址集合里面会有那个伪造的提供方。</p>
+<p>当然，这种情况相对上面说的调用方未经过咨询就直接调用的概率会小很多，但为了让系统整体更安全，也需要在 RPC 里面考虑这种情况。要解决这个问题的根本就是需要把接口跟应用绑定上，一个接口只允许有一个应用发布提供者，避免其它应用也能发布这个接口。</p>
+<p>服务提供方启动的时候，需要把接口实例在注册中心进行注册登记。可以利用这个流程，注册中心可以在收到服务提供方注册请求的时候，验证下请求过来的应用是否跟接口绑定的应用一样，只有相同才允许注册，否则就返回错误信息给启动的应用，从而避免假冒的服务提供者对外提供错误服务。</p>
+<h1 id="故障定位"><a href="#故障定位" class="headerlink" title="故障定位"></a>故障定位</h1><p>在开发过程中遇见问题其实很好排查，可以用 IDE 在自己本地的开发环境中运行一遍代码，进行 debug，在这个过程中是很容易找到问题的。那换到生产环境，代码在线上运行业务，是不能进行 debug 的，这时就可以通过打印日志来查看当前的异常日志，这也是最简单有效的一种方式了。事实上，大部分问题的定位也是这样做的。</p>
+<p>先来看一个场景，搭建了一个分布式的应用系统，在这个应用系统中，启动了 4 个子服务，分别是服务 A、服务 B、服务 C 与服务 D，而这 4 个服务的依赖关系是 A-&gt;B-&gt;C-&gt;D，而这些服务又都部署在不同的机器上。在 RPC 调用中，如果服务端的业务逻辑出现了异常，就会把异常抛回给调用端，那么如果现在这个调用链中有一个服务出现了异常，则会出现如下情况：</p>
+<img src="/2021/04/06/rpclevel3/errortrace.jpg" style="zoom:24%;">
+
+<p>假如这时服务 A 出现了异常，那这个异常有没有可能是因为 B 或 C 或 D 出现了异常抛回来的呢？当然很有可能。那怎么确定在整个应用系统中，是哪一个调用步骤出现的问题，以及是在这个步骤中的哪台机器出现的问题呢？该在哪台机器上打印日志？而且为了排查问题，如果要打印日志，就必须要修改代码，这样的话就得重新对服务进行上线。如果这几个服务又恰好是跨团队跨部门的呢？这就要面临很大的沟通成本。</p>
+<p>所以，分布式环境下定位问题的难点就在于，各子应用、子服务间有着复杂的依赖关系，有时很难确定是哪个服务的哪个环节出现的问题。简单地通过日志排查问题，就要对每个子应用、子服务逐一进行排查，很难一步到位；若恰好再赶上跨团队跨部门，那就更麻烦了。</p>
+<h2 id="封装异常"><a href="#封装异常" class="headerlink" title="封装异常"></a>封装异常</h2><p>在 RPC 框架打印的异常信息中，一般是需要封装定位异常所需要的异常信息的，比如是哪个类异常引起的问题（如序列化问题或网络超时问题），是调用端还是服务端出现的异常，调用端与服务端的 IP 是什么，以及服务接口与服务分组都是什么等等。具体如下图所示：</p>
+<img src="/2021/04/06/rpclevel3/ERROR.jpg" style="zoom:24%;">
+
+<p>这样的话，在 A-&gt;B-&gt;C-&gt;D 这个过程中，就可以很快地定位到是 C 服务出现了问题，服务接口是 com.demo.CSerivce，调用端 IP 是 192.168.1.2，服务端 IP 是 192.168.1.3，而出现问题的原因就是业务线程池满了。</p>
+<p>由此可见，一款优秀的 RPC 框架要对异常进行详细地封装，还要对各类异常进行分类，每类异常都要有明确的异常标识码，并整理成一份简明的文档。使用方可以快速地通过异常标识码在文档中查阅，从而快速定位问题，找到原因；并且异常信息中要包含排查问题时所需要的重要信息，比如服务接口名、服务分组、调用端与服务端的 IP，以及产生异常的原因。总之就是，要让使用方在复杂的分布式应用系统中，根据异常信息快速地定位到问题。</p>
+<p>以上是对于 RPC 框架本身的异常来说的，比如序列化异常、响应超时异常、连接异常等等。那服务端业务逻辑的异常呢？服务提供方提供的服务的业务逻辑也要封装自己的业务异常信息，从而让服务调用方也可以通过异常信息快速地定位到问题。</p>
+<h2 id="分布式链路追踪"><a href="#分布式链路追踪" class="headerlink" title="分布式链路追踪"></a>分布式链路追踪</h2><p>回到刚才的分布式场景中：搭建了一个分布式的应用系统，它由 4 个子服务组成，4 个服务的依赖关系为 A-&gt;B-&gt;C-&gt;D。假设这 4 个服务分别由来自不同部门的 4 个同事维护，在 A 调用 B 的时候，维护服务 A 的同事可能是不知道存在服务 C 和服务 D 的，对于服务 A 来说，它的下游服务只有 B 服务，那这时如果服务 C 或服务 D 出现异常，最终在整个链路中将异常抛给 A。因为对于 A 来说，它可能是不知道下游存在服务 C 和服务 D 的，所以维护服务 A 的同事会直接联系维护服务 B 的同事，之后维护服务 B 的同事会继续联系下游服务的服务提供方，直到找到问题。这样也增加了很多沟通协调的成本。</p>
+<p>现在换个思路，其实只要知道整个请求的调用链路就可以了。服务 A 调用下游服务 B，服务 B 又调用了 B 依赖的下游服务，如果维护服务 A 的同事能清楚地知道整个调用链路，并且能准确地发现在整个调用链路中是哪个环节出现了问题，那就好了。</p>
+<p>在分布式环境下，要想知道服务调用的整个链路，可以用“分布式链路跟踪”。从字面上理解，分布式链路跟踪就是将一次分布式请求还原为一个完整的调用链路，可以在整个调用链路中跟踪到这一次分布式请求的每一个环节的调用情况，比如调用是否成功，返回什么异常，调用的哪个服务节点以及请求耗时等等。这样如果发现服务调用出现问题，通过这个方法，就能快速定位问题，哪怕是多个部门合作，也可以一步到位。</p>
+<p>分布式链路跟踪有 Trace 与 Span 的概念：</p>
+<ul>
+<li>Trace 就是代表整个链路，每次分布式调用都会产生一个 Trace，每个 Trace 都有它的唯一标识即 TraceId，在分布式链路跟踪系统中，就是通过 TraceId 来区分每个 Trace 的；</li>
+<li>Span 就是代表了整个链路中的一段链路，也就是说 Trace 是由多个 Span 组成的。在一个 Trace 下，每个 Span 也都有它的唯一标识 SpanId，而 Span 是存在父子关系的。还是以讲过的例子为例子，在 A-&gt;B-&gt;C-&gt;D 的情况下，在整个调用链中，正常情况下会产生 3 个 Span，分别是 Span1（A-&gt;B）、Span2（B-&gt;C）、Span3（C-&gt;D），这时 Span3 的父 Span 就是 Span2，而 Span2 的父 Span 就是 Span1。</li>
+</ul>
+<p>Trace 与 Span 的关系如下图所示：</p>
+<img src="/2021/04/06/rpclevel3/tracespan.jpg" style="zoom:24%;">
+
+<p>分布式链路跟踪系统的实现方式有很多，但它们都脱离不开我刚才说的 Trace 和 Span，这两点可以说非常重要，掌握了这两个概念，其实你就掌握了大部分实现方式的原理。</p>
+<p><strong><em>RPC 在整合分布式链路跟踪需要做的最核心的两件事就是“埋点”和“传递”:</em></strong></p>
+<ul>
+<li>所谓“埋点”就是说，分布式链路跟踪系统要想获得一次分布式调用的完整的链路信息，就必须对这次分布式调用进行数据采集，而采集这些数据的方法就是通过 RPC 框架对分布式链路跟踪进行埋点。RPC 调用端在访问服务端时，在发送请求消息前会触发分布式跟踪埋点，在接收到服务端响应时，也会触发分布式跟踪埋点，并且在服务端也会有类似的埋点。这些埋点最终可以记录一个完整的 Span，而这个链路的源头会记录一个完整的 Trace，最终 Trace 信息会被上报给分布式链路跟踪系统。</li>
+<li>那所谓“传递”就是指，上游调用端将 Trace 信息与父 Span 信息传递给下游服务的服务端，由下游触发埋点，对这些信息进行处理，在分布式链路跟踪系统中，每个子 Span 都存有父 Span 的相关信息以及 Trace 的相关信息。</li>
+</ul>
+<h1 id="时钟轮"><a href="#时钟轮" class="headerlink" title="时钟轮"></a>时钟轮</h1><p>在开发的过程中，很多场景都会使用到定时任务，在 RPC 框架中也有很多地方会使用到它。就以调用端请求超时的处理逻辑为例，下面看一下 RPC 框架是如果处理超时请求的。</p>
+<p>无论是同步调用还是异步调用，调用端内部实现都是异步，而调用端在向服务端发送消息之前会创建一个 Future，并存储这个消息标识与这个 Future 的映射，当服务端收到消息并且处理完毕后向调用端发送响应消息，调用端在接收到消息后会根据消息的唯一标识找到这个 Future，并将结果注入给这个 Future。</p>
+<p>那在这个过程中，如果服务端没有及时响应消息给调用端呢？调用端该如何处理超时的请求？就是可以利用定时任务。每次创建一个 Future，记录这个 Future 的创建时间与这个 Future 的超时时间，并且有一个定时任务进行检测，当这个 Future 到达超时时间并且没有被处理时，就对这个 Future 执行超时逻辑。</p>
+<p>定时任务实现可以有多种方式，其中最简单的方式，每创建一个 Future都启动一个线程，之后sleep，到达超时时间就触发请求超时的处理逻辑。这种方式吧，确实简单，在某些场景下也是可以使用的，但弊端也是显而易见的。当面临高并发的请求，单机每秒发送数万次请求，请求超时时间设置的是 5 秒，那就需要创建很多很多个线程用来执行超时任务，这显然是不合理的。</p>
+<p>还有另一种实现方式。可以用一个线程来处理所有的定时任务，还以刚才那个 Future 超时处理的例子为例。假设要启动一个线程，这个线程每隔 100 毫秒会扫描一遍所有的处理 Future 超时的任务，当发现一个 Future 超时了，就执行这个任务，对这个 Future 执行超时逻辑。这种方式我们用得最多，它也解决了第一种方式线程过多的问题，但其实它也有明显的弊端。同样是高并发的请求，如果调用端刚好在 1 秒内发送了 1 万次请求，这 1 万次请求要在 5 秒后才会超时，那么那个扫描的线程在这个 5 秒内就会不停地对这 1 万个任务进行扫描遍历，要额外扫描 40 多次（每 100 毫秒扫描一次，5 秒内要扫描近 50 次），很浪费 CPU。</p>
+<p>这个问题也不难解决，只要找到一种方式，减少额外的扫描操作就行了。比如一批定时任务是 5 秒之后执行，在 4.9 秒之后才开始扫描这批定时任务，这样就大大地节省了 CPU。这时就可以利用时钟轮的机制了。时钟轮的实现原理就是参考了生活中的时钟跳动的原理。在时钟轮机制中，有时间槽和时钟轮的概念，时间槽就相当于时钟的刻度，而时钟轮就相当于秒针与分针等跳动的一个周期，会将每个任务放到对应的时间槽位上。</p>
+<p>时钟轮的运行机制和生活中的时钟也是一样的，每隔固定的单位时间，就会从一个时间槽位跳到下一个时间槽位，这就相当于秒针跳动了一次；时钟轮可以分为多层，下一层时钟轮中每个槽位的单位时间是当前时间轮整个周期的时间，这就相当于 1 分钟等于 60 秒钟；当时钟轮将一个周期的所有槽位都跳动完之后，就会从下一层时钟轮中取出一个槽位的任务，重新分布到当前的时钟轮中，当前时钟轮则从第 0 槽位从新开始跳动，这就相当于下一分钟的第 1 秒。</p>
+<img src="/2021/04/06/rpclevel3/timeyaobai.jpg" style="zoom:24%;">
+
+<p>有了时间槽位概念，则可以把对应的定时任务，放到对应的时间轮槽位之上。刚才举例讲到的调用端请求超时处理，这里就可以应用到时钟轮，每发一次请求，都创建一个处理请求超时的定时任务放到时钟轮里，在高并发、高访问量的情况下，**<em>时钟轮每次只轮询一个时间槽位中的任务，这样会节省大量的 CPU**</em>。</p>
+<p>还有定时心跳，RPC 框架调用端定时向服务端发送心跳，来维护连接状态，可以将心跳的逻辑封装为一个心跳任务，放到时钟轮里。在定时任务的执行逻辑的最后，可以重设这个任务的执行时间，把它重新丢回到时钟轮里。在 RPC 框架中，只要涉及到定时任务，都可以应用时钟轮，比较典型的就是调用端的超时处理、调用端与服务端的启动超时以及定时心跳等等。</p>
+<h1 id="流量回放"><a href="#流量回放" class="headerlink" title="流量回放"></a>流量回放</h1><p>简单介绍一下流量回放，所谓的流量就是某个时间段内的所有请求，通过某种手段把发送到 A 应用的所有请求录制下来，然后把这些请求统一转发到 B 应用，让 B 应用接收到的请求参数跟 A 应用保持一致，从而实现 A 接收到的请求在 B 应用里面重新请求了一遍。整个过程我们称之为“流量回放”。</p>
+<p>流量回放可以应用到应用的测试。传统 QA 测试出问题的根本原因就是，因为改造后的应用在上线后出现跟应用上线前不一致的行为。而测试的目的就是为了保证改造后的应用跟改造前应用的行为一致，测试 Case 也都是在尽力模拟应用在线上的运行行为，但仅通过自己的枚举方式维护的 Case 并不能代表线上应用的所有行为。因此最好的方式就是用线上流量来验证，但是直接把新应用上线肯定是不行的，因为一旦新改造的应用存在问题就可能会导致线上调用方业务受损。</p>
+<p>可以换一种思路，先把线上一段时间内的请求参数和响应结果保存下来，然后把这些请求参数在新改造的应用里重新请求一遍，最后比对一下改造前后的响应结果是否一致，这就间接达到了使用线上流量测试的效果。有了线上的请求参数和响应结果后，再结合持续集成过程，就可以让改动后的代码随时用线上流量进行验证。</p>
+<p>常见的方案有很多，比如像 TcpCopy、Nginx 等。但在线上环境要使用这些工具的时候，还得需要找运维团队把软件安装到应用实例里面，然后再按照你的需求给配置好才能使用，整个过程繁琐而且总数重复做无用功。</p>
+<p>RPC 是用来完成应用之间通信的，换句话就是说应用之间的所有请求响应都会经过 RPC。既然所有的请求都会经过 RPC，那么在 RPC 里面是不是就可以很方便地拿到每次请求的出入参数？拿到这些出入参数后，只要把这些出入参数旁录下来，并把这些旁录结果用异步的方式发送到一个固定的地方保存起来，这样就完成了流量回放里面的录制功能。</p>
+<p>有了真实的请求入参之后，剩下的就是怎么把这些请求参数转发到要回归测试的应用里面。在 RPC 中，把能够接收请求的应用叫做服务提供方，那就是说只需要模拟一个应用调用方，把刚才收到的请求参数重新发送一遍到要回归测试的应用里面，然后比对录制拿到的请求结果和新请求的结果，就可以完成请求回放的效果。整个过程如下图所示：</p>
+<img src="/2021/04/06/rpclevel3/liulianghuifang.jpg" style="zoom:24%;">
+
+<p>相对其它现成的流量回放方案，在 RPC 里面内置流量回放功能，使用起来会更加方便，并且还可以做更多定制，比如在线启停、方法级别录制等个性化需求。</p>
+<h1 id="动态分组"><a href="#动态分组" class="headerlink" title="动态分组"></a>动态分组</h1><p>在调用方复杂的情况下，如果还是让所有调用方都调用同一个集群的话，很有可能会因为非核心业务的调用量突然增长，而让整个集群变得不可用了，进而让核心业务的调用方受到影响。为了避免这种情况发生，需要把整个大集群根据不同的调用方划分出不同的小集群来，从而实现调用方流量隔离的效果，进而保障业务之间不会互相影响。</p>
+<p>通过人为分组的方式确实能帮服务提供方硬隔离调用方的流量，让不同的调用方拥有自己独享的集群，从而保障各个调用方之间互不影响。但这对于服务提供方来说，又带来了一个新的问题，就是我们该给调用方分配多大的集群才合适呢？当然，最理想的情况就是给每个调用方都分配一个独立的分组，但是如果在服务提供方的调用方相对比较多的情况下，对于服务提供方来说要维护这些关系还是比较困难的。因此实际在给集群划分分组的时候，一般会选择性地合并一些调用方到同一个分组里。</p>
+<p>在算每个分组所需要的机器数的时候，需要额外给每个分组增加一些机器，从而让每个小集群有一定的抗压能力，而这个抗压能力取决于给这个集群预留的机器数量。作为服务提供方来说，肯定希望给每个集群预留的机器数越多越好，但现实情况又不允许预留太多，因为这样会增加团队的整体成本。所以对于这些每个分组多余的机器来说，当面临大流量时，能够将较少流量的分组预留机器，动态划分到抗流量比较多的分组中，也是一种有效的减少成本，动态扩缩容的一种方式。</p>
+<p>那这样的话，在出问题的时候临时去借用其它分组的部分能力，但通过改分组进行重启应用的方式，不仅操作过程慢，事后还得恢复。因此这种生硬的方式显然并不是很合适。改应用分组然后进行重启的目的，就是让出问题的服务调用方能通过服务发现找到更多的服务提供方机器，而服务发现的数据来自注册中心，那是不是可以通过修改注册中心的数据来解决呢？只要把注册中心里面的部分实例的别名改成想要的别名，然后通过服务发现进而影响到不同调用方能够调用的服务提供方实例集合。</p>
+<p>通过直接修改注册中心数据，可以让任何一个分组瞬间拥有不同规模的集群能力。这样不仅可以实现把某个实例的分组名改成另外一个分组名，还可以让某个实例分组名变成多个分组名，这就是在动态分组里面最常见的两种动作——**<em>追加和替换**</em>。</p>
+<p>为了解决这种突发流量的问题，事实上可以利用动态分组解决分组后给每个分组预留机器冗余的问题，没有必要把所有冗余的机器都分配到分组里面，可以把这些预留的机器做成一个共享的池子，从而减少整体预留的实例数量。</p>
+<h1 id="泛化调用"><a href="#泛化调用" class="headerlink" title="泛化调用"></a>泛化调用</h1><p>所谓的 RPC 调用，本质上就是调用端向服务端发送一条请求消息，服务端接收并处理，之后向调用端发送一条响应消息，调用端处理完响应消息之后，一次 RPC 调用就完成了。那是不是说只要能够让调用端在没有服务提供方提供接口的情况下，仍然能够向服务端发送正确的请求消息，也能够实现一次RPC调用。只要调用端将服务端需要知道的信息，如接口名、业务分组名、方法名以及参数信息等封装成请求消息发送给服务端，服务端就能够解析并处理这条请求消息，这样问题就解决了。过程如下图所示：</p>
+<img src="/2021/04/06/rpclevel3/fanhua.jpg" style="zoom:24%;">
+
+<p>让调用端在没有服务提供方提供接口 API 的情况下仍然可以发起 RPC 调用的功能，在 RPC 框架中也是非常有价值的。RPC 框架要实现这个功能，可以使用泛化调用。可以定义一个统一的接口（GenericService），调用端在创建 GenericService 代理时指定真正需要调用的接口的接口名以及分组名，而 GenericService 接口的 $invoke 方法的入参就是方法名以及参数信息。这样我们传递给服务端所需要的所有信息，包括接口名、业务分组名、方法名以及参数信息等都可以通过调用 GenericService 代理的 $invoke 方法来传递。具体的接口可以定义如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">GenericService</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">  Object $invoke(String methodName, String[] paramTypes, Object[] params);</span><br><span class="line">  </span><br><span class="line">  CompletableFuture $asyncInvoke(String methodName, String[] paramTypes, Object[] params);&#125;</span><br><span class="line">  </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这个通过统一的 GenericService 接口类生成的动态代理，来实现在没有接口的情况下进行 RPC 调用的功能，就称之为泛化调用。其中异步方法 $asyncInvoke，方法的返回值是CompletableFuture，为了实现异步调用实现的方法。</p>
+<p>在没有服务提供方提供接口 API 的情况下，可以用泛化调用的方式实现 RPC 调用，但是如果没有服务提供方提供接口 API，也就没法得到入参以及返回值的 Class 类，也就不能对入参对象进行正常的序列化。这时会面临两个问题：</p>
+<ul>
+<li>序列化与反序列化：通过插件体系来提高 RPC 框架的可扩展性，在 RPC 框架的整体架构中就包括了序列化插件，可以为泛化调用提供专属的序列化插件，通过这个插件，解决泛化调用中的序列化与反序列化问题；</li>
+<li>返回值类型：在服务提供方提供的接口 API 中，被调用的方法的入参类型是一个对象，那么使用泛化调用功能的调用端，可以使用 Map 类型的对象，之后通过泛化调用专属的序列化方式对这个 Map 对象进行序列化，服务端收到消息后，再通过泛化调用专属的序列化方式将其反序列成对象。</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/" rel="tag"># 学习笔记</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2021/04/01/rpclevel2/" rel="prev" title="RPC进阶">
+      <i class="fa fa-chevron-left"></i> RPC进阶
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%AE%80%E4%BB%8B"><span class="nav-number">1.</span> <span class="nav-text">简介</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%BC%82%E6%AD%A5RPC"><span class="nav-number">2.</span> <span class="nav-text">异步RPC</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%80%A7%E8%83%BD%E5%BD%B1%E5%93%8D%E5%9B%A0%E7%B4%A0"><span class="nav-number">2.1.</span> <span class="nav-text">性能影响因素</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%B0%83%E7%94%A8%E7%AB%AF%E5%BC%82%E6%AD%A5"><span class="nav-number">2.2.</span> <span class="nav-text">调用端异步</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%9C%8D%E5%8A%A1%E7%AB%AF%E5%BC%82%E6%AD%A5"><span class="nav-number">2.3.</span> <span class="nav-text">服务端异步</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%AE%89%E5%85%A8%E4%BD%93%E7%B3%BB"><span class="nav-number">3.</span> <span class="nav-text">安全体系</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%89%B4%E6%9D%83"><span class="nav-number">3.1.</span> <span class="nav-text">鉴权</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%98%B2%E4%BC%AA"><span class="nav-number">3.2.</span> <span class="nav-text">防伪</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%95%85%E9%9A%9C%E5%AE%9A%E4%BD%8D"><span class="nav-number">4.</span> <span class="nav-text">故障定位</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%B0%81%E8%A3%85%E5%BC%82%E5%B8%B8"><span class="nav-number">4.1.</span> <span class="nav-text">封装异常</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%88%86%E5%B8%83%E5%BC%8F%E9%93%BE%E8%B7%AF%E8%BF%BD%E8%B8%AA"><span class="nav-number">4.2.</span> <span class="nav-text">分布式链路追踪</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%97%B6%E9%92%9F%E8%BD%AE"><span class="nav-number">5.</span> <span class="nav-text">时钟轮</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%B5%81%E9%87%8F%E5%9B%9E%E6%94%BE"><span class="nav-number">6.</span> <span class="nav-text">流量回放</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8A%A8%E6%80%81%E5%88%86%E7%BB%84"><span class="nav-number">7.</span> <span class="nav-text">动态分组</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%B3%9B%E5%8C%96%E8%B0%83%E7%94%A8"><span class="nav-number">8.</span> <span class="nav-text">泛化调用</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">EvenLjj</p>
+  <div class="site-description" itemprop="description">记录最近所学所思，让岁月留下汗水的痕迹</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">19</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">EvenLjj</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a> 强力驱动
+  </div>
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+</div>
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
